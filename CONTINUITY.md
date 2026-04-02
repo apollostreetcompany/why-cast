@@ -50,9 +50,10 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Replaced the minimal static page with a polished React + Vite landing page served from the existing Worker.
 - [x] Kept the full live demo path working from the landing page: create show, regenerate script, render audio, and stream playback.
 - [x] Bead 007 committed and deployed: the production landing page is now demo-ready.
+- [x] Bead 008 committed and deployed: the create modal now scrolls correctly on shorter viewports.
 
 ### Now
-- Bead 008: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
+- Bead 009: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
 
 ### Next
 - Add R2-backed audio hosting once longer-lived asset storage matters more than speed.

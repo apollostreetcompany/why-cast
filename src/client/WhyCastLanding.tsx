@@ -379,7 +379,7 @@ function CreateModal(props: {
     <AnimatePresence>
       {props.isOpen ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -391,7 +391,7 @@ function CreateModal(props: {
             aria-label="Close modal"
           />
           <motion.div
-            className="paper-noise relative z-10 w-full max-w-3xl overflow-hidden rounded-[2rem] border border-amber-200 bg-[#fbf3e8] shadow-paper"
+            className="paper-noise relative z-10 my-3 w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-amber-200 bg-[#fbf3e8] shadow-paper max-h-[calc(100vh-1.5rem)] sm:max-h-[min(92vh,920px)]"
             initial={{ y: 36, scale: 0.96, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 24, scale: 0.98, opacity: 0 }}
