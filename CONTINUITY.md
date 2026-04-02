@@ -39,6 +39,7 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Bead 004 committed and deployed: the live API now supports quiz submission, active Workflows, and reminder-oriented feedback loops.
 - [x] Added four selectable narrator presets with on-site sample playback.
 - [x] Added a real OpenAI-backed `generate-live` route and deployed the required Worker secret.
+- [x] Bead 005 committed and deployed: narrator selection and live script regeneration are available in production.
 
 ### Now
 - Bead 006: wire the first real ElevenLabs-backed server-side narration path and store the audio artifact.

@@ -24,7 +24,7 @@
 - Health endpoint: `GET /api/health`
 - Smoke path: create show request -> create episode job -> retrieve episode list -> play demo audio URL
 - Last verified deploy: `https://why-cast.ryan-borker.workers.dev`
-- Last verified version: `4fc40ea7-7b43-4fa4-b5b1-a9df2136d2ef`
+- Last verified version: `37d8ca70-adfa-4ebb-88ee-fc708427908a`
 - Last smoke results:
   - `GET /api/health` returned `ok: true` plus judge-facing architecture metadata, including active Workflows, on 2026-04-02 UTC
   - `GET /api/config` returned four narrator presets for on-site sample playback on 2026-04-02 UTC
