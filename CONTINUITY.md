@@ -20,6 +20,8 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 6. Prioritize a believable thin slice over full curriculum breadth: Khan Academy + history/math/science + 3-5 minute episodes.
 7. Use a framework-light frontend for the hackathon MVP to reduce build risk and keep iteration speed high.
 8. Use browser speech synthesis as the temporary audio-preview fallback until real ElevenLabs audio generation is wired.
+9. Store the first rendered audio artifact in Durable Object storage for the hackathon slice, then move audio persistence to R2 when longer-lived hosting becomes a priority.
+10. Expose real ElevenLabs narrator sampling and episode rendering directly through Worker routes so judges can hear the Cloudflare plus ElevenLabs story without leaving the site.
 
 ## State
 
@@ -40,19 +42,21 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Added four selectable narrator presets with on-site sample playback.
 - [x] Added a real OpenAI-backed `generate-live` route and deployed the required Worker secret.
 - [x] Bead 005 committed and deployed: narrator selection and live script regeneration are available in production.
+- [x] Added a real ElevenLabs-backed narrator sample route and Episode 1 render-audio route.
+- [x] Added Durable Object-backed storage and playback for rendered episode audio artifacts.
+- [x] Bead 006 committed and deployed: real server-side narration is available in production.
 
 ### Now
-- Bead 006: wire the first real ElevenLabs-backed server-side narration path and store the audio artifact.
+- Bead 007: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
 
 ### Next
-- Add a mock or real async workflow path for episode generation status updates.
-- Wire D1 persistence under the Durable Object and workflow layer.
-- Wire real LLM + ElevenLabs integrations and deploy.
+- Add R2-backed audio hosting once longer-lived asset storage matters more than speed.
 - Pre-generate showcase stories and capture demo video assets.
 
 ## Open Questions
 - UNCONFIRMED: which LLM provider should be primary for generation during the hackathon.
-- Current MVP answer: episode delivery is mobile web playback first, with download/script fallback until real audio generation is wired.
+- Current MVP answer: episode delivery is mobile web playback first, with downloadable MP3 plus script fallback.
+- Current MVP answer: real narration now works for narrator samples and Episode 1, stored in Durable Object storage until R2 is added.
 - UNCONFIRMED: whether source ingestion will use direct curated transcripts only or a search/scrape layer in the MVP.
 
 ## Working Set

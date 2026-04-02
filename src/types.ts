@@ -33,6 +33,8 @@ export interface Episode {
   script: string;
   citationLabel: string;
   audioUrl: string | null;
+  audioMimeType?: string;
+  audioSource?: "elevenlabs";
   scriptSource?: "template" | "openai";
 }
 

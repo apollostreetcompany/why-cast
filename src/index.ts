@@ -9,6 +9,7 @@ import { buildWorkflowDemo } from "./services/workflow-demo";
 import { DailyReminderWorkflow, ShowPipelineWorkflow } from "./workflows/show-pipeline";
 import { generateLiveEpisode } from "./services/live-generation";
 import { narratorPresets } from "./services/narrator-voices";
+import { synthesizeEpisodeAudio, synthesizeNarratorSample } from "./services/elevenlabs-audio";
 
 interface Env {
   ASSETS?: Fetcher;
@@ -17,6 +18,8 @@ interface Env {
   DAILY_REMINDER: Workflow<{ showId: string }>;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
+  ELEVENLABS_API_KEY?: string;
+  ELEVENLABS_MODEL?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -63,7 +66,11 @@ app.get("/api/config", (c) =>
       label: `${sourcePack.provider} - ${sourcePack.topic}`,
       subject: sourcePack.subject
     })),
-    narratorPresets,
+    narratorPresets: narratorPresets.map((preset) => ({
+      ...preset,
+      sampleUrl: `/api/narrators/${preset.id}/sample`,
+    })),
+    elevenLabsReady: Boolean(c.env.ELEVENLABS_API_KEY),
     architectureNotes: {
       serializedShows: "A Durable Object owns continuity, event history, and episode handoff for each show.",
       audioPipeline: "ElevenLabs Text to Speech + Sound Effects + Speech to Text are combined for narration, scene texture, and transcript QA.",
@@ -134,11 +141,33 @@ app.get("/api/shows/:showId/workflow-demo", async (c) => {
 
 app.get("/api/narrators", (c) =>
   c.json({
-    narratorPresets,
-    sampleMode: "browser-speech-synthesis",
-    elevenLabsReady: false,
+    narratorPresets: narratorPresets.map((preset) => ({
+      ...preset,
+      sampleUrl: `/api/narrators/${preset.id}/sample`,
+    })),
+    sampleMode: c.env.ELEVENLABS_API_KEY ? "elevenlabs" : "browser-speech-synthesis",
+    elevenLabsReady: Boolean(c.env.ELEVENLABS_API_KEY),
   }),
 );
+
+app.get("/api/narrators/:narratorPresetId/sample", async (c) => {
+  if (!c.env.ELEVENLABS_API_KEY) {
+    return c.json(
+      {
+        error: "ELEVENLABS_API_KEY is not configured in the deployed worker.",
+      },
+      503,
+    );
+  }
+
+  const artifact = await synthesizeNarratorSample(c.env, c.req.param("narratorPresetId"));
+  return new Response(artifact.audioBuffer, {
+    headers: {
+      "Content-Type": artifact.mimeType,
+      "Cache-Control": "public, max-age=3600",
+    },
+  });
+});
 
 app.post("/api/shows/:showId/quiz/submit", async (c) => {
   const roomId = c.env.SHOW_ROOMS.idFromString(c.req.param("showId"));
@@ -206,6 +235,68 @@ app.post("/api/shows/:showId/generate-live", async (c) => {
     show: enrichShow(updatedShow),
     editor: generated.editor,
     generationMode: "openai-live",
+  });
+});
+
+app.post("/api/shows/:showId/render-audio", async (c) => {
+  const roomId = c.env.SHOW_ROOMS.idFromString(c.req.param("showId"));
+  const room = c.env.SHOW_ROOMS.get(roomId);
+  const response = await room.fetch("https://show-room/show");
+
+  if (response.status !== 200) {
+    return c.json({ error: "Show not found" }, 404);
+  }
+
+  if (!c.env.ELEVENLABS_API_KEY) {
+    return c.json(
+      {
+        error: "ELEVENLABS_API_KEY is not configured in the deployed worker.",
+      },
+      503,
+    );
+  }
+
+  const show = (await response.json()) as Show;
+  const episode = show.episodes.find((item) => item.episodeNumber === 1) ?? show.episodes[0];
+  const artifact = await synthesizeEpisodeAudio(c.env, show);
+  const storeResponse = await room.fetch(`https://show-room/audio/${encodeURIComponent(episode.id)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": artifact.mimeType,
+    },
+    body: artifact.audioBuffer,
+  });
+  const updatedShow = (await storeResponse.json()) as Show;
+
+  return c.json({
+    show: enrichShow(updatedShow),
+    audio: {
+      source: "elevenlabs",
+      voiceId: artifact.voiceId,
+      modelId: artifact.modelId,
+      mimeType: artifact.mimeType,
+    },
+  });
+});
+
+app.get("/api/shows/:showId/episodes/:episodeId/audio", async (c) => {
+  const roomId = c.env.SHOW_ROOMS.idFromString(c.req.param("showId"));
+  const room = c.env.SHOW_ROOMS.get(roomId);
+  const response = await room.fetch(
+    `https://show-room/audio/${encodeURIComponent(c.req.param("episodeId"))}`,
+  );
+
+  if (response.status !== 200) {
+    const body = await response.json();
+    return c.json(body, response.status as 404);
+  }
+
+  return new Response(await response.arrayBuffer(), {
+    headers: {
+      "Content-Type": response.headers.get("Content-Type") ?? "audio/mpeg",
+      "Cache-Control": response.headers.get("Cache-Control") ?? "private, max-age=3600",
+      "Content-Disposition": response.headers.get("Content-Disposition") ?? "inline",
+    },
   });
 });
 

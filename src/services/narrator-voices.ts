@@ -5,6 +5,13 @@ export interface NarratorPreset {
   tone: string;
   sampleLine: string;
   browserVoiceHints: string[];
+  elevenLabsVoiceId: string;
+  elevenLabsVoiceSettings: {
+    stability: number;
+    similarity_boost: number;
+    style: number;
+    use_speaker_boost: boolean;
+  };
 }
 
 export const narratorPresets: NarratorPreset[] = [
@@ -16,6 +23,13 @@ export const narratorPresets: NarratorPreset[] = [
     sampleLine:
       "Tonight, we are following a clue so old that even the river remembers it.",
     browserVoiceHints: ["Samantha", "Ava", "Allison"],
+    elevenLabsVoiceId: "21m00Tcm4TlvDq8ikWAM",
+    elevenLabsVoiceSettings: {
+      stability: 0.42,
+      similarity_boost: 0.88,
+      style: 0.3,
+      use_speaker_boost: true,
+    },
   },
   {
     id: "mac-campfire",
@@ -25,6 +39,13 @@ export const narratorPresets: NarratorPreset[] = [
     sampleLine:
       "Come closer, because this is the kind of story that begins with a whisper and grows into a world.",
     browserVoiceHints: ["Daniel", "Alex", "Aaron"],
+    elevenLabsVoiceId: "ErXwobaYiN019PkySvjV",
+    elevenLabsVoiceSettings: {
+      stability: 0.55,
+      similarity_boost: 0.82,
+      style: 0.18,
+      use_speaker_boost: true,
+    },
   },
   {
     id: "mac-playful-spark",
@@ -34,6 +55,13 @@ export const narratorPresets: NarratorPreset[] = [
     sampleLine:
       "Wait, did you hear that? Something important just clicked into place.",
     browserVoiceHints: ["Karen", "Moira", "Siri Female"],
+    elevenLabsVoiceId: "EXAVITQu4vr4xnSDxMaL",
+    elevenLabsVoiceSettings: {
+      stability: 0.36,
+      similarity_boost: 0.84,
+      style: 0.45,
+      use_speaker_boost: true,
+    },
   },
   {
     id: "mac-bedtime-deep",
@@ -43,6 +71,13 @@ export const narratorPresets: NarratorPreset[] = [
     sampleLine:
       "Close your eyes for a moment and picture a river carrying an entire civilization forward.",
     browserVoiceHints: ["Fred", "Tom", "Siri Male"],
+    elevenLabsVoiceId: "pNInz6obpgDQGcFmaJgB",
+    elevenLabsVoiceSettings: {
+      stability: 0.62,
+      similarity_boost: 0.76,
+      style: 0.1,
+      use_speaker_boost: true,
+    },
   },
 ];
 

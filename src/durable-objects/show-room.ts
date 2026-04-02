@@ -4,6 +4,10 @@ import type { Show, ShowRequest, StoryEvent } from "../types";
 
 interface Env {}
 
+function slugify(value: string): string {
+  return value.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 function createEvent(type: StoryEvent["type"], detail: string): StoryEvent {
   return {
     id: crypto.randomUUID(),
@@ -124,6 +128,80 @@ export class ShowRoom {
       };
       await this.writeShow(finalShow);
       return Response.json(finalShow);
+    }
+
+    const audioMatch = url.pathname.match(/\/audio\/([^/]+)$/);
+
+    if (audioMatch && request.method === "POST") {
+      const show = await this.readShow();
+
+      if (!show) {
+        return Response.json({ error: "Show not found" }, { status: 404 });
+      }
+
+      const episodeId = decodeURIComponent(audioMatch[1] ?? "");
+      const episode = show.episodes.find((item) => item.id === episodeId);
+      if (!episode) {
+        return Response.json({ error: "Episode not found" }, { status: 404 });
+      }
+
+      const audioBuffer = await request.arrayBuffer();
+      if (audioBuffer.byteLength === 0) {
+        return Response.json({ error: "Audio payload was empty" }, { status: 400 });
+      }
+
+      const mimeType = request.headers.get("Content-Type") ?? "audio/mpeg";
+      await this.state.storage.put(`audio:${episodeId}`, audioBuffer);
+
+      const finalShow = {
+        ...hydrateShow(show, [
+          ...show.events,
+          createEvent(
+            "audio-stack-planned",
+            `Episode ${episode.episodeNumber} narration was rendered and stored for playback.`,
+          ),
+        ]),
+        episodes: show.episodes.map((item) =>
+          item.id === episodeId
+            ? {
+                ...item,
+                audioUrl: `/api/shows/${show.id}/episodes/${episodeId}/audio`,
+                audioMimeType: mimeType,
+                audioSource: "elevenlabs" as const,
+              }
+            : item,
+        ),
+      };
+
+      await this.writeShow(finalShow);
+      return Response.json(finalShow);
+    }
+
+    if (audioMatch && request.method === "GET") {
+      const show = await this.readShow();
+
+      if (!show) {
+        return Response.json({ error: "Show not found" }, { status: 404 });
+      }
+
+      const episodeId = decodeURIComponent(audioMatch[1] ?? "");
+      const episode = show.episodes.find((item) => item.id === episodeId);
+      if (!episode?.audioUrl) {
+        return Response.json({ error: "Episode audio not found" }, { status: 404 });
+      }
+
+      const audioBuffer = await this.state.storage.get<ArrayBuffer>(`audio:${episodeId}`);
+      if (!audioBuffer) {
+        return Response.json({ error: "Episode audio bytes not found" }, { status: 404 });
+      }
+
+      return new Response(audioBuffer, {
+        headers: {
+          "Content-Type": episode.audioMimeType ?? "audio/mpeg",
+          "Cache-Control": "private, max-age=3600",
+          "Content-Disposition": `inline; filename="${slugify(episode.title) || "episode-audio"}.mp3"`,
+        },
+      });
     }
 
     if (request.method === "GET" && url.pathname.endsWith("/show")) {

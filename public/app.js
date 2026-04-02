@@ -4,6 +4,18 @@ const sourcePackSelect = document.querySelector("#sourcePackId");
 const narratorPresetSelect = document.querySelector("#narratorPresetId");
 const voiceSamples = document.querySelector("#voice-samples");
 let narratorPresets = [];
+let elevenLabsReady = false;
+let currentAudio = null;
+
+async function playAudioUrl(url) {
+  if (currentAudio) {
+    currentAudio.pause();
+  }
+
+  const audio = new Audio(url);
+  currentAudio = audio;
+  await audio.play();
+}
 
 function pickBrowserVoice(preset) {
   const voices = window.speechSynthesis?.getVoices?.() ?? [];
@@ -17,6 +29,17 @@ function pickBrowserVoice(preset) {
 }
 
 function playNarratorSample(preset) {
+  if (elevenLabsReady && preset.sampleUrl) {
+    playAudioUrl(preset.sampleUrl).catch(() => {
+      speakFallbackNarratorSample(preset);
+    });
+    return;
+  }
+
+  speakFallbackNarratorSample(preset);
+}
+
+function speakFallbackNarratorSample(preset) {
   if (!("speechSynthesis" in window)) {
     window.alert("Speech synthesis is not available in this browser.");
     return;
@@ -66,6 +89,7 @@ async function loadConfig() {
     .join("");
 
   narratorPresets = config.narratorPresets ?? [];
+  elevenLabsReady = Boolean(config.elevenLabsReady);
   narratorPresetSelect.innerHTML = narratorPresets
     .map(
       (preset) =>
@@ -107,10 +131,17 @@ function downloadScript(title, script) {
 
 function renderEpisode(episode) {
   const isReady = episode.status === "ready";
+  const audioActions = isReady && episode.audioUrl
+    ? `
+      <button class="secondary" data-play-audio="${episode.id}">Play audio</button>
+      <button class="secondary" data-download-audio="${episode.id}">Download audio</button>
+    `
+    : "";
   const actions = isReady
     ? `
       <div class="actions">
-        <button class="secondary" data-play="${episode.id}">Play preview</button>
+        ${audioActions}
+        <button class="secondary" data-play="${episode.id}">${episode.audioUrl ? "Play script preview" : "Play preview"}</button>
         <button class="secondary" data-download="${episode.id}">Download script</button>
       </div>
     `
@@ -129,6 +160,13 @@ function renderEpisode(episode) {
 }
 
 function renderShow(show) {
+  const narratorLabel =
+    narratorPresets.find((preset) => preset.id === show.narratorPresetId)?.label ??
+    show.narratorPresetId ??
+    "Mac: Wonder Guide";
+  const renderAudioAction = elevenLabsReady
+    ? `<button class="secondary" data-render-audio="${show.id}">Render studio audio</button>`
+    : "";
   result.classList.remove("hidden");
   result.innerHTML = `
     <h2>${show.mode === "serialized" ? "Serialized show ready" : "One-off episode ready"}</h2>
@@ -136,7 +174,7 @@ function renderShow(show) {
       ${show.storyType} for ages ${show.ages.join(", ")} using ${show.sourcePack.provider} and the topic
       "${show.sourcePack.topic}".
     </p>
-    <p><strong>Narrator:</strong> ${show.narratorPresetId ?? "mac-wonder-guide"}</p>
+    <p><strong>Narrator:</strong> ${narratorLabel}</p>
     <p><strong>Continuity anchor:</strong> ${show.continuityAnchor}</p>
     <div class="architecture">
       <p class="section-title">Judge-facing stack</p>
@@ -151,6 +189,7 @@ function renderShow(show) {
     </div>
     <div class="actions">
       <button class="primary" data-generate-live="${show.id}">Generate live script</button>
+      ${renderAudioAction}
     </div>
   `;
 
@@ -162,6 +201,23 @@ function renderShow(show) {
     result
       .querySelector(`[data-play="${episode.id}"]`)
       .addEventListener("click", () => speakEpisode(episode.script));
+    if (episode.audioUrl) {
+      result
+        .querySelector(`[data-play-audio="${episode.id}"]`)
+        .addEventListener("click", () => {
+          playAudioUrl(episode.audioUrl).catch(() => {
+            window.alert("Could not play the rendered audio.");
+          });
+        });
+      result
+        .querySelector(`[data-download-audio="${episode.id}"]`)
+        .addEventListener("click", () => {
+          const link = document.createElement("a");
+          link.href = episode.audioUrl;
+          link.download = `${episode.title.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}.mp3`;
+          link.click();
+        });
+    }
     result
       .querySelector(`[data-download="${episode.id}"]`)
       .addEventListener("click", () => downloadScript(episode.title, episode.script));
@@ -180,6 +236,22 @@ function renderShow(show) {
       }
       renderShow(body.show);
     });
+
+  if (elevenLabsReady) {
+    result
+      .querySelector(`[data-render-audio="${show.id}"]`)
+      .addEventListener("click", async () => {
+        const response = await fetch(`/api/shows/${show.id}/render-audio`, {
+          method: "POST",
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          window.alert(body.error ?? "Could not render audio.");
+          return;
+        }
+        renderShow(body.show);
+      });
+  }
 }
 
 form.addEventListener("submit", async (event) => {
