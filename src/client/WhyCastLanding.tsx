@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BrainCircuit,
   ChevronDown,
-  Cloud,
   Compass,
   Globe,
   HelpCircle,
@@ -13,9 +11,7 @@ import {
   Sparkles,
   Star,
   Wand2,
-  Workflow,
   X,
-  Zap,
 } from "lucide-react";
 
 interface NarratorPreset {
@@ -74,10 +70,6 @@ interface ShowResponse {
     topic: string;
   };
   episodes: Episode[];
-  judgeNotes: {
-    cloudflare: string[];
-    elevenlabs: string[];
-  };
   unlockQuiz: UnlockQuiz | null;
 }
 
@@ -101,13 +93,6 @@ const whyQuestions = [
   "Why does the moon change shape?",
 ];
 
-const techPills = [
-  { icon: Cloud, label: "Cloudflare Workers" },
-  { icon: Workflow, label: "Workflows + Durable Objects" },
-  { icon: Mic, label: "ElevenLabs Voices" },
-  { icon: BrainCircuit, label: "Trusted Source Stories" },
-];
-
 const storyStyleOptions = [
   { value: "Adventure", label: "Epic Adventure" },
   { value: "Mystery", label: "Mystery Detective" },
@@ -116,39 +101,46 @@ const storyStyleOptions = [
 ];
 
 const floatingGlyphs = [
-  { icon: Lightbulb, x: "4%", y: "12%", rotate: -12, color: "#f59e0b", size: 44, delay: 0 },
-  { icon: Mic, x: "84%", y: "18%", rotate: 12, color: "#8b5cf6", size: 40, delay: 0.2 },
-  { icon: Globe, x: "8%", y: "74%", rotate: -8, color: "#10b981", size: 38, delay: 0.35 },
-  { icon: Compass, x: "88%", y: "68%", rotate: 10, color: "#f43f5e", size: 34, delay: 0.5 },
-  { icon: Star, x: "50%", y: "8%", rotate: 5, color: "#3b82f6", size: 30, delay: 0.65 },
+  { icon: Mic, x: "8%", y: "12%", rotate: -14, color: "#f4a11a", size: 34, delay: 0 },
+  { icon: Compass, x: "29%", y: "10%", rotate: 10, color: "#8b76d6", size: 42, delay: 0.12 },
+  { icon: Star, x: "84%", y: "13%", rotate: -10, color: "#e4a746", size: 30, delay: 0.2 },
+  { icon: Lightbulb, x: "32%", y: "44%", rotate: -8, color: "#db9b62", size: 30, delay: 0.3 },
+  { icon: Globe, x: "50%", y: "47%", rotate: 6, color: "#c5b18a", size: 34, delay: 0.4 },
+  { icon: Wand2, x: "69%", y: "45%", rotate: 22, color: "#d7a57e", size: 36, delay: 0.5 },
+  { icon: Mic, x: "10%", y: "72%", rotate: -24, color: "#d99c50", size: 40, delay: 0.62 },
+  { icon: Play, x: "86%", y: "72%", rotate: 8, color: "#b0bf5a", size: 28, delay: 0.7 },
 ];
 
-const howSteps = [
-  {
-    id: "ask",
-    icon: HelpCircle,
-    title: 'Ask "Why?"',
-    detail: "Start with one irresistible kid question.",
-    accent: "text-violet-700",
-    card: "bg-violet-50 border-violet-200",
-  },
-  {
-    id: "build",
-    icon: Wand2,
-    title: "Generate the show",
-    detail: "We turn trusted lessons into a short cinematic audio story.",
-    accent: "text-amber-700",
-    card: "bg-amber-50 border-amber-200",
-  },
-  {
-    id: "listen",
-    icon: Play,
-    title: "Listen anywhere",
-    detail: "Episode 1 lands fast, and the next episode unlocks later.",
-    accent: "text-emerald-700",
-    card: "bg-emerald-50 border-emerald-200",
-  },
+const cornerPieces = [
+  "absolute left-0 top-0 h-28 w-28 bg-[#d9b183] [clip-path:polygon(0_0,100%_0,0_100%)]",
+  "absolute right-0 top-0 h-20 w-32 bg-[#5ea0ee] [clip-path:polygon(18%_0,100%_0,100%_100%)]",
+  "absolute right-0 top-0 h-28 w-20 bg-[#b7c95b] [clip-path:polygon(100%_0,100%_100%,0_0)]",
+  "absolute bottom-0 left-0 h-28 w-28 bg-[#e6ddd0] [clip-path:polygon(0_100%,0_22%,100%_100%)]",
+  "absolute bottom-0 right-0 h-24 w-72 bg-[linear-gradient(135deg,#b78ff1,#8d63ef)] [clip-path:polygon(32%_100%,100%_62%,100%_100%,0_100%)] opacity-90",
 ];
+
+function PaperSticker(props: {
+  icon: typeof Mic;
+  color: string;
+  size: number;
+  rotate: number;
+  className?: string;
+}) {
+  const Icon = props.icon;
+
+  return (
+    <div
+      className={`relative inline-flex items-center justify-center bg-[#fffaf1] shadow-[0_14px_28px_rgba(106,70,35,0.12)] ${props.className ?? ""}`}
+      style={{
+        transform: `rotate(${props.rotate}deg)`,
+        clipPath: "polygon(4% 2%, 98% 0, 100% 8%, 99% 96%, 95% 100%, 3% 98%, 0 94%, 1% 5%)",
+        boxShadow: "0 0 0 6px #f8d3a4, 0 14px 30px rgba(94, 58, 24, 0.12)",
+      }}
+    >
+      <Icon size={props.size} color={props.color} strokeWidth={1.7} />
+    </div>
+  );
+}
 
 function speakFallbackSample(preset: NarratorPreset) {
   if (!("speechSynthesis" in window)) {
@@ -232,9 +224,7 @@ function ResultPanel(props: {
               {props.show.episodes[0]?.title}
             </h2>
             <p className="mt-3 max-w-2xl text-stone-600">
-              Real Worker-backed show generation is live from this landing page. You can
-              regenerate the script, render real audio, and stream the result without leaving
-              the page.
+              Your first episode is ready. Rewrite it, render the audio, and keep going.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <button
@@ -289,42 +279,25 @@ function ResultPanel(props: {
           </div>
 
           <div className="space-y-5">
-            <div className="rounded-[1.5rem] border border-violet-200 bg-violet-50 p-5">
-              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700">
-                Cloudflare in the loop
-              </p>
-              <ul className="mt-3 space-y-3 text-sm text-stone-700">
-                {props.show.judgeNotes.cloudflare.map((note) => (
-                  <li key={note} className="flex gap-2">
-                    <Cloud size={16} className="mt-0.5 shrink-0 text-violet-600" />
-                    <span>{note}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-5">
-              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-amber-700">
-                ElevenLabs in the loop
-              </p>
-              <ul className="mt-3 space-y-3 text-sm text-stone-700">
-                {props.show.judgeNotes.elevenlabs.map((note) => (
-                  <li key={note} className="flex gap-2">
-                    <Mic size={16} className="mt-0.5 shrink-0 text-orange-500" />
-                    <span>{note}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
             <div className="rounded-[1.5rem] border border-stone-200 bg-white/75 p-5">
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
-                Continuity anchor
+                Series note
               </p>
               <p className="mt-3 text-sm leading-6 text-stone-700">{props.show.continuityAnchor}</p>
+              <div className="mt-4 space-y-2 text-sm text-stone-600">
+                <p>
+                  <span className="font-semibold text-stone-800">Source:</span>{" "}
+                  {props.show.sourcePack.provider} - {props.show.sourcePack.topic}
+                </p>
+                <p>
+                  <span className="font-semibold text-stone-800">Voice:</span> {props.narratorLabel}
+                </p>
+              </div>
             </div>
             {props.show.unlockQuiz && !props.show.unlockQuiz.passed ? (
               <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-5">
                 <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-700">
-                  Family unlock quiz
+                  Unlock episode 2
                 </p>
                 <p className="mt-3 text-sm font-semibold text-stone-800">
                   {props.show.unlockQuiz.question}
@@ -412,8 +385,7 @@ function CreateModal(props: {
                     Build the show in under a minute.
                   </h2>
                   <p className="mt-2 max-w-xl text-sm text-stone-500 md:text-base">
-                    This page is not a mock. It calls the live Worker, generates the real show,
-                    and can render live narration with ElevenLabs.
+                    Pick the question, choose the voice, and make the first episode.
                   </p>
                 </div>
                 <button
@@ -525,18 +497,13 @@ function CreateModal(props: {
                 </div>
 
                 <div className="rounded-[1.5rem] border border-stone-200 bg-white/70 p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
-                        Voice samples
-                      </p>
-                      <p className="text-sm text-stone-500">
-                        Preview the available narrator moods before generating.
-                      </p>
-                    </div>
-                    <div className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
-                      ElevenLabs live
-                    </div>
+                  <div className="mb-3">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
+                      Voice samples
+                    </p>
+                    <p className="text-sm text-stone-500">
+                      Pick the one that feels right.
+                    </p>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     {props.config?.narratorPresets.map((preset) => (
@@ -763,6 +730,9 @@ export function WhyCastLanding() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f5efe5] text-stone-900">
+      {cornerPieces.map((className) => (
+        <div key={className} className={className} />
+      ))}
       {floatingGlyphs.map((glyph, index) => {
         const Icon = glyph.icon;
         return (
@@ -776,68 +746,58 @@ export function WhyCastLanding() {
           >
             <motion.div
               animate={{
-                y: [0, -8, 0, 4, 0],
+                y: [0, -7, 0, 4, 0],
                 rotate: [glyph.rotate, glyph.rotate + 3, glyph.rotate],
               }}
               transition={{ duration: 5 + index * 0.5, repeat: Infinity, ease: "easeInOut" }}
             >
-              <Icon size={glyph.size} color={glyph.color} />
+              <PaperSticker
+                icon={Icon}
+                color={glyph.color}
+                size={glyph.size}
+                rotate={glyph.rotate}
+                className="h-16 w-16 md:h-20 md:w-20"
+              />
             </motion.div>
           </motion.div>
         );
       })}
 
       <main className="relative z-10 px-4 py-10 md:px-6 md:py-14">
-        <section className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
-          <div>
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white/70 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700">
-              <Zap size={14} />
-              For relentless little question askers
+        <section className="mx-auto max-w-6xl">
+          <div className="relative min-h-[70vh] overflow-hidden rounded-[2rem] bg-[#fbf8f2] px-5 py-8 shadow-paper md:min-h-[760px] md:px-10 md:py-10">
+            <div className="pointer-events-none absolute inset-x-0 top-7 flex items-center justify-center gap-10 text-stone-900">
+              <span className="font-display text-3xl italic tracking-tight md:text-5xl">Explore</span>
+              <span className="text-2xl font-black uppercase tracking-[0.12em] md:text-5xl">YOUR</span>
             </div>
+
+            <div className="flex min-h-[60vh] flex-col items-center justify-end pb-20 text-center md:min-h-[680px] md:pb-10">
+              <div className="mb-6 flex min-h-[2rem] items-center gap-2 text-base italic text-stone-500 md:text-xl">
+                <HelpCircle size={18} className="text-violet-500" />
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={whyQuestions[currentQuestionIndex]}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.35 }}
+                  >
+                    “{whyQuestions[currentQuestionIndex]}”
+                  </motion.span>
+                </AnimatePresence>
+              </div>
             <motion.h1
-              className="font-display text-5xl font-extrabold leading-[0.95] text-stone-900 md:text-7xl"
+                className="font-display text-6xl font-extrabold leading-[0.9] text-stone-900 md:text-[8.5rem]"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              Turn every <span className="text-violet-700">why</span> into a tiny world worth hearing.
+                Curiosity
             </motion.h1>
-            <div className="mt-5 flex min-h-[2rem] items-center gap-2 text-lg italic text-stone-500 md:text-xl">
-              <HelpCircle size={20} className="text-violet-500" />
-              <AnimatePresence mode="wait">
-                <motion.span
-                  key={whyQuestions[currentQuestionIndex]}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.35 }}
-                >
-                  “{whyQuestions[currentQuestionIndex]}”
-                </motion.span>
-              </AnimatePresence>
-            </div>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600">
-              WhyCast turns curious kid questions into trusted 3-5 minute audio stories, with
-              Cloudflare Workers, Durable Objects, Workflows, and real ElevenLabs voices behind
-              the scenes.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              {techPills.map((pill) => {
-                const Icon = pill.icon;
-                return (
-                  <div
-                    key={pill.label}
-                    className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white/80 px-4 py-2 text-sm font-bold text-stone-700"
-                  >
-                    <Icon size={16} className="text-violet-600" />
-                    {pill.label}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-10 flex flex-wrap gap-4">
+              <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 md:text-lg">
+                Ask one good why. We turn it into a short story your kid will actually listen to.
+              </p>
+              <div className="mt-8 flex flex-wrap justify-center gap-4">
               <motion.button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
@@ -854,91 +814,23 @@ export function WhyCastLanding() {
                 href="#live-demo"
                 className="rounded-[1.6rem] border border-stone-200 bg-white/80 px-8 py-5 text-lg font-bold text-stone-700 transition hover:border-violet-300"
               >
-                See the live demo
+                  See one in action
               </a>
-            </div>
+              </div>
 
-            <p className="mt-6 text-sm font-medium text-stone-400">
-              Free to try. No account needed. Made for ages 4-12.
-            </p>
+              <p className="mt-6 text-sm font-medium text-stone-400">
+                Free to try. No account needed. Made for ages 4-12.
+              </p>
+            </div>
           </div>
-
-          <motion.div
-            className="paper-noise relative overflow-hidden rounded-[2rem] border border-amber-200 bg-[#fbf4ea] p-6 shadow-paper md:p-7"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.8 }}
-          >
-            <div className="absolute left-0 top-0 h-24 w-24 bg-amber-200/70 [clip-path:polygon(0_0,100%_0,0_100%)]" />
-            <div className="absolute right-0 top-0 h-20 w-20 bg-sky-200/60 [clip-path:polygon(0_0,100%_0,100%_100%)]" />
-            <div className="absolute bottom-0 left-0 h-20 w-20 bg-lime-200/70 [clip-path:polygon(0_100%,0_0,100%_100%)]" />
-            <div className="relative">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700">
-                <Cloud size={14} />
-                Cloudflare-native product demo
-              </div>
-              <div className="space-y-4">
-                <div className="rounded-[1.4rem] border border-stone-200 bg-white/80 p-4">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
-                    Workers
-                  </p>
-                  <p className="mt-2 text-base font-bold text-stone-900">
-                    The landing page, API, and playback links all live on Workers.
-                  </p>
-                </div>
-                <div className="rounded-[1.4rem] border border-stone-200 bg-white/80 p-4">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
-                    Durable Objects
-                  </p>
-                  <p className="mt-2 text-base font-bold text-stone-900">
-                    Continuity stays attached to each show instead of drifting between requests.
-                  </p>
-                </div>
-                <div className="rounded-[1.4rem] border border-stone-200 bg-white/80 p-4">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
-                    ElevenLabs
-                  </p>
-                  <p className="mt-2 text-base font-bold text-stone-900">
-                    Narrator samples and Episode 1 rendering already work live.
-                  </p>
-                </div>
-                <div className="rounded-[1.4rem] border border-stone-200 bg-white/80 p-4">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
-                    Family loop
-                  </p>
-                  <p className="mt-2 text-base font-bold text-stone-900">
-                    A tiny quiz unlocks the next episode and prevents spammy autobot runs.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
         </section>
 
-        <section className="mx-auto mt-16 max-w-6xl">
-          <div className="grid gap-5 md:grid-cols-3">
-            {howSteps.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <motion.article
-                  key={step.id}
-                  className={`rounded-[1.7rem] border p-6 shadow-paper/60 ${step.card}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.35 + index * 0.1, duration: 0.6 }}
-                >
-                  <div className="mb-4 inline-flex rounded-full bg-white/80 p-3">
-                    <Icon size={22} className={step.accent} />
-                  </div>
-                  <p className={`text-xs font-extrabold uppercase tracking-[0.18em] ${step.accent}`}>
-                    Step {index + 1}
-                  </p>
-                  <h2 className="mt-2 text-xl font-black text-stone-900">{step.title}</h2>
-                  <p className="mt-2 text-sm leading-6 text-stone-600">{step.detail}</p>
-                </motion.article>
-              );
-            })}
-          </div>
+        <section className="mx-auto mt-10 max-w-4xl text-center">
+          <p className="text-sm uppercase tracking-[0.22em] text-stone-400">How it works</p>
+          <p className="mt-4 text-lg leading-8 text-stone-600 md:text-xl">
+            Ask the question. Pick the mood. Get a short episode. If they love it,
+            unlock the next one.
+          </p>
         </section>
 
         <section
@@ -949,10 +841,10 @@ export function WhyCastLanding() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
-                Live demo
+                Demo
               </p>
               <h2 className="mt-2 font-display text-4xl font-extrabold text-stone-900">
-                The beautiful page still drives the real product.
+                Make one.
               </h2>
             </div>
             <button
@@ -960,7 +852,7 @@ export function WhyCastLanding() {
               onClick={() => setIsModalOpen(true)}
               className="rounded-full bg-stone-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-violet-700"
             >
-              Open the generator
+              Open the creator
             </button>
           </div>
 
@@ -981,28 +873,10 @@ export function WhyCastLanding() {
               onQuizAnswer={handleQuizAnswer}
             />
           ) : (
-            <div className="mt-8 grid gap-5 md:grid-cols-[1fr_0.9fr]">
-              <div className="rounded-[1.5rem] border border-stone-200 bg-stone-50/80 p-5">
-                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
-                  What happens when you click
-                </p>
-                <ol className="mt-4 space-y-3 text-sm leading-6 text-stone-700">
-                  <li>1. The landing page posts a real show request to the Worker.</li>
-                  <li>2. A Durable Object creates continuity and the episode queue.</li>
-                  <li>3. You can regenerate the script live with OpenAI.</li>
-                  <li>4. You can render real ElevenLabs audio and stream it back instantly.</li>
-                </ol>
-              </div>
-              <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-5">
-                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-amber-700">
-                  Best live path
-                </p>
-                <p className="mt-3 text-sm leading-6 text-stone-700">
-                  Use Ancient Egypt, serialized mode, Campfire Storyteller, generate the live
-                  script, then render the studio audio. That shows the full Cloudflare and
-                  ElevenLabs story with the fewest clicks.
-                </p>
-              </div>
+            <div className="mt-8 rounded-[1.5rem] border border-stone-200 bg-stone-50/80 p-6 text-center">
+              <p className="text-lg leading-8 text-stone-600">
+                Start with one question and make the first episode in under a minute.
+              </p>
             </div>
           )}
         </section>

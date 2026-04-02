@@ -24,6 +24,7 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 10. Expose real ElevenLabs narrator sampling and episode rendering directly through Worker routes so judges can hear the Cloudflare plus ElevenLabs story without leaving the site.
 11. Ship the polished landing page as a React + Vite frontend served by the same Worker, while preserving the existing API and demo routes.
 12. Trim live-generated scripts before TTS so the hackathon-era Durable Object audio storage path stays reliable until R2 takes over.
+13. Simplify the landing page back toward an editorial collage aesthetic: minimal copy, fewer sections, no stack-marketing clutter, and a hero composition that echoes the original paper-cutout reference.
 
 ## State
 
@@ -51,9 +52,11 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Kept the full live demo path working from the landing page: create show, regenerate script, render audio, and stream playback.
 - [x] Bead 007 committed and deployed: the production landing page is now demo-ready.
 - [x] Bead 008 committed and deployed: the create modal now scrolls correctly on shorter viewports.
+- [x] Simplified the landing page hero and demo framing to match the original collage-like vibe, and removed the supplementary Cloudflare-heavy marketing copy and pill clutter from the user-facing experience.
+- [x] Bead 009 deployed: the live page now uses a cleaner editorial composition while preserving the real demo flow.
 
 ### Now
-- Bead 009: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
+- Bead 010: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
 
 ### Next
 - Add R2-backed audio hosting once longer-lived asset storage matters more than speed.
