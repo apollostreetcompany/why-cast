@@ -24,7 +24,7 @@
 - Health endpoint: `GET /api/health`
 - Smoke path: create show request -> create episode job -> retrieve episode list -> play demo audio URL
 - Last verified deploy: `https://why-cast.ryan-borker.workers.dev`
-- Last verified version: `a3081337-8f15-4f3a-a08e-6879baeda2b7`
+- Last verified version: `4fc40ea7-7b43-4fa4-b5b1-a9df2136d2ef`
 - Last smoke results:
   - `GET /api/health` returned `ok: true` plus judge-facing architecture metadata, including active Workflows, on 2026-04-02 UTC
   - `POST /api/shows` returned a Durable Object-backed serialized show with one ready episode, three queued episodes, continuity events, and a multi-API ElevenLabs audio plan on 2026-04-02 UTC
