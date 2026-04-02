@@ -33,6 +33,18 @@ export interface Episode {
   audioUrl: string | null;
 }
 
+export interface StoryEvent {
+  id: string;
+  type:
+    | "show-created"
+    | "continuity-locked"
+    | "episode-queued"
+    | "audio-stack-planned"
+    | "episode-reviewed";
+  detail: string;
+  timestamp: string;
+}
+
 export interface Show {
   id: string;
   mode: StoryMode;
@@ -43,4 +55,10 @@ export interface Show {
   sourcePack: SourcePack;
   createdAt: string;
   episodes: Episode[];
+  continuityAnchor: string;
+  judgeNotes: {
+    cloudflare: string[];
+    elevenlabs: string[];
+  };
+  events: StoryEvent[];
 }

@@ -75,6 +75,15 @@ function renderShow(show) {
       ${show.storyType} for ages ${show.ages.join(", ")} using ${show.sourcePack.provider} and the topic
       "${show.sourcePack.topic}".
     </p>
+    <p><strong>Continuity anchor:</strong> ${show.continuityAnchor}</p>
+    <div class="architecture">
+      <p class="section-title">Judge-facing stack</p>
+      <p>${show.audioStack.headline}</p>
+      <ul>
+        ${show.judgeNotes.cloudflare.map((item) => `<li>${item}</li>`).join("")}
+        ${show.judgeNotes.elevenlabs.map((item) => `<li>${item}</li>`).join("")}
+      </ul>
+    </div>
     <div class="episode-list">
       ${show.episodes.map(renderEpisode).join("")}
     </div>

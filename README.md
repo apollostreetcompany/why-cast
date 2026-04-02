@@ -8,6 +8,8 @@ Audio-first educational storytelling for kids, built for a fast Cloudflare + Ele
 - One-off and serialized show modes
 - Deterministic first-episode generation
 - Static frontend + Hono API on Cloudflare Workers
+- Durable Object-backed show room state for serialized continuity
+- Judge-facing plan for ElevenLabs Text to Speech, Sound Effects, and Speech to Text
 
 ## Quick Start
 1. `make install`

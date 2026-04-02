@@ -63,7 +63,26 @@ Files:
 - `public/styles.css`
 - `wrangler.jsonc`
 
-### 2. Cloudflare Workflows for Episode Generation
+### 2. Durable Objects for Serialized Continuity
+Use one Durable Object per show as the authoritative "show room."
+
+Responsibilities:
+- hold the continuity anchor
+- keep the event log for creation, review, and handoff
+- serialize follow-up episode state changes
+- act as the single writer for show-level memory during the hackathon MVP
+
+Why:
+- This maps directly to the organizers' interest in Durable Objects.
+- Serialized children's stories naturally want one authoritative owner of continuity.
+- It creates a more interesting Cloudflare architecture than a plain stateless API.
+
+Files:
+- `src/durable-objects/show-room.ts`
+- `src/index.ts`
+- `wrangler.jsonc`
+
+### 3. Cloudflare Workflows for Episode Generation
 Treat episode creation as an async workflow with explicit stages:
 1. Normalize request
 2. Resolve source pack
@@ -84,7 +103,7 @@ Files:
 - `src/services/editor.ts`
 - `src/services/audio.ts`
 
-### 3. D1 + R2 + KV Responsibilities
+### 4. D1 + R2 + KV Responsibilities
 - `D1`: source packs, parent sessions, shows, episode requests, continuity summaries, episode metadata
 - `R2`: final audio files, optional transcript files, demo assets
 - `KV`: cached transcript extracts, prompt blocks, short-lived workflow caches
@@ -92,7 +111,18 @@ Files:
 Why:
 - Each storage product maps cleanly to one job and showcases the Cloudflare stack credibly.
 
-### 4. Start with Curated Source Packs
+### 5. Combine Multiple ElevenLabs APIs
+Use at least three ElevenLabs APIs in the hackathon story:
+- Text to Speech for narration
+- Sound Effects for short scene transitions and emotional texture
+- Speech to Text for transcript verification, caption output, and continuity QA after render
+
+Why:
+- This responds directly to the organizers' guidance.
+- It gives a stronger demo than plain narration alone.
+- The transcription pass helps the "editor" concept feel real and technically coherent.
+
+### 6. Start with Curated Source Packs
 Do not build broad web search first. Seed curated Khan Academy transcript/excerpt packs for demo topics.
 
 Why:

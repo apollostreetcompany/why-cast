@@ -1,6 +1,6 @@
 import { buildContinuitySummary, buildEpisodeTitle, buildLearningGoal, buildQueuedEpisodePreview } from "./editor";
 import { getSourcePack } from "../lib/source-packs";
-import type { Episode, Show, ShowRequest, SourcePack } from "../types";
+import type { Episode, Show, ShowRequest, SourcePack, StoryEvent } from "../types";
 
 function createId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
@@ -72,6 +72,30 @@ export function createShow(request: ShowRequest): Show {
     characters: request.characters,
     sourcePack,
     createdAt: new Date().toISOString(),
-    episodes: [firstEpisode, ...queuedEpisodes]
+    episodes: [firstEpisode, ...queuedEpisodes],
+    continuityAnchor:
+      request.mode === "serialized"
+        ? `Keep ${request.characters} emotionally stable, recap the last concept in one beat, and thread ${sourcePack.topic} through the next reveal.`
+        : `Keep the episode self-contained and end with one memorable recap of ${sourcePack.topic}.`,
+    judgeNotes: {
+      cloudflare: [
+        "Workers handle the API and static UI at the edge.",
+        "Durable Objects keep serialized show continuity in one authoritative place.",
+        "Workflows are the planned async engine for generation, editing, and delivery.",
+      ],
+      elevenlabs: [
+        "Text to Speech for narration.",
+        "Sound Effects for scene transitions and world texture.",
+        "Speech to Text for transcript QA, captions, and continuity verification.",
+      ],
+    },
+    events: []
+  };
+}
+
+export function hydrateShow(show: Show, events: StoryEvent[]): Show {
+  return {
+    ...show,
+    events,
   };
 }

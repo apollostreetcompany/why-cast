@@ -1,12 +1,13 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { createShow } from "./services/story-generator";
-import { saveShow, getShow } from "./lib/demo-store";
 import { sourcePacks } from "./lib/source-packs";
-import type { ShowRequest } from "./types";
+import type { Show, ShowRequest } from "./types";
+import { buildAudioStackPlan } from "./lib/audio-stack";
+import { ShowRoom } from "./durable-objects/show-room";
 
 interface Env {
   ASSETS?: Fetcher;
+  SHOW_ROOMS: DurableObjectNamespace;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -24,7 +25,11 @@ app.get("/api/health", (c) =>
   c.json({
     ok: true,
     product: "why-cast",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    architecture: {
+      cloudflare: ["Workers", "Durable Objects", "Workflows (planned)", "D1 (next)", "R2 (next)", "KV (next)"],
+      elevenlabs: ["Text to Speech", "Sound Effects", "Speech to Text"],
+    },
   }),
 );
 
@@ -39,26 +44,52 @@ app.get("/api/config", (c) =>
       id: sourcePack.id,
       label: `${sourcePack.provider} - ${sourcePack.topic}`,
       subject: sourcePack.subject
-    }))
+    })),
+    architectureNotes: {
+      serializedShows: "A Durable Object owns continuity, event history, and episode handoff for each show.",
+      audioPipeline: "ElevenLabs Text to Speech + Sound Effects + Speech to Text are combined for narration, scene texture, and transcript QA.",
+    },
   }),
 );
 
 app.post("/api/shows", async (c) => {
   const body = await c.req.json();
   const request = requestSchema.parse(body) as ShowRequest;
-  const show = saveShow(createShow(request));
+  const roomId = c.env.SHOW_ROOMS.newUniqueId();
+  const room = c.env.SHOW_ROOMS.get(roomId);
+  const response = await room.fetch("https://show-room/initialize", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+  const show = (await response.json()) as Show;
 
-  return c.json(show, 201);
+  return c.json(
+    {
+      ...show,
+      audioStack: buildAudioStackPlan(show),
+    },
+    201,
+  );
 });
 
-app.get("/api/shows/:showId", (c) => {
-  const show = getShow(c.req.param("showId"));
+app.get("/api/shows/:showId", async (c) => {
+  const roomId = c.env.SHOW_ROOMS.idFromString(c.req.param("showId"));
+  const room = c.env.SHOW_ROOMS.get(roomId);
+  const response = await room.fetch("https://show-room/show");
 
-  if (!show) {
+  if (response.status === 404) {
     return c.json({ error: "Show not found" }, 404);
   }
 
-  return c.json(show);
+  const show = await response.json();
+  const typedShow = show as Show;
+  return c.json({
+    ...typedShow,
+    audioStack: buildAudioStackPlan(typedShow),
+  });
 });
 
 app.notFound((c) => {
@@ -70,3 +101,4 @@ app.notFound((c) => {
 });
 
 export default app;
+export { ShowRoom };
