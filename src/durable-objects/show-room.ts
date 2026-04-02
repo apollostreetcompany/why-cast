@@ -90,6 +90,42 @@ export class ShowRoom {
       });
     }
 
+    if (request.method === "POST" && url.pathname.endsWith("/episode/live")) {
+      const show = await this.readShow();
+
+      if (!show) {
+        return Response.json({ error: "Show not found" }, { status: 404 });
+      }
+
+      const body = (await request.json()) as {
+        title: string;
+        script: string;
+      };
+      const updatedEpisodes = show.episodes.map((episode) =>
+        episode.episodeNumber === 1
+          ? {
+              ...episode,
+              title: body.title,
+              script: body.script,
+              scriptSource: "openai" as const,
+            }
+          : episode,
+      );
+      const updated = hydrateShow(show, [
+        ...show.events,
+        createEvent(
+          "episode-generated",
+          "Episode 1 was regenerated with the live model path.",
+        ),
+      ]);
+      const finalShow = {
+        ...updated,
+        episodes: updatedEpisodes,
+      };
+      await this.writeShow(finalShow);
+      return Response.json(finalShow);
+    }
+
     if (request.method === "GET" && url.pathname.endsWith("/show")) {
       const show = await this.readShow();
 

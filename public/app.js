@@ -1,6 +1,58 @@
 const form = document.querySelector("#show-form");
 const result = document.querySelector("#result");
 const sourcePackSelect = document.querySelector("#sourcePackId");
+const narratorPresetSelect = document.querySelector("#narratorPresetId");
+const voiceSamples = document.querySelector("#voice-samples");
+let narratorPresets = [];
+
+function pickBrowserVoice(preset) {
+  const voices = window.speechSynthesis?.getVoices?.() ?? [];
+  for (const hint of preset.browserVoiceHints ?? []) {
+    const match = voices.find((voice) => voice.name.includes(hint));
+    if (match) {
+      return match;
+    }
+  }
+  return voices[0] ?? null;
+}
+
+function playNarratorSample(preset) {
+  if (!("speechSynthesis" in window)) {
+    window.alert("Speech synthesis is not available in this browser.");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(preset.sampleLine);
+  const voice = pickBrowserVoice(preset);
+  if (voice) {
+    utterance.voice = voice;
+  }
+  utterance.rate = preset.id === "mac-playful-spark" ? 1.03 : 0.94;
+  utterance.pitch = preset.id === "mac-bedtime-deep" ? 0.92 : 1.02;
+  window.speechSynthesis.speak(utterance);
+}
+
+function renderNarratorSamples() {
+  voiceSamples.innerHTML = narratorPresets
+    .map(
+      (preset) => `
+        <article class="voice-sample">
+          <strong>${preset.label}</strong>
+          <p>${preset.subtitle}</p>
+          <p>${preset.tone}</p>
+          <button type="button" class="secondary" data-sample-id="${preset.id}">Play sample</button>
+        </article>
+      `,
+    )
+    .join("");
+
+  for (const preset of narratorPresets) {
+    voiceSamples
+      .querySelector(`[data-sample-id="${preset.id}"]`)
+      .addEventListener("click", () => playNarratorSample(preset));
+  }
+}
 
 async function loadConfig() {
   const response = await fetch("/api/config");
@@ -12,6 +64,15 @@ async function loadConfig() {
         `<option value="${sourcePack.id}">${sourcePack.label} (${sourcePack.subject})</option>`,
     )
     .join("");
+
+  narratorPresets = config.narratorPresets ?? [];
+  narratorPresetSelect.innerHTML = narratorPresets
+    .map(
+      (preset) =>
+        `<option value="${preset.id}">${preset.label} - ${preset.subtitle}</option>`,
+    )
+    .join("");
+  renderNarratorSamples();
 }
 
 function parseAges(value) {
@@ -75,6 +136,7 @@ function renderShow(show) {
       ${show.storyType} for ages ${show.ages.join(", ")} using ${show.sourcePack.provider} and the topic
       "${show.sourcePack.topic}".
     </p>
+    <p><strong>Narrator:</strong> ${show.narratorPresetId ?? "mac-wonder-guide"}</p>
     <p><strong>Continuity anchor:</strong> ${show.continuityAnchor}</p>
     <div class="architecture">
       <p class="section-title">Judge-facing stack</p>
@@ -86,6 +148,9 @@ function renderShow(show) {
     </div>
     <div class="episode-list">
       ${show.episodes.map(renderEpisode).join("")}
+    </div>
+    <div class="actions">
+      <button class="primary" data-generate-live="${show.id}">Generate live script</button>
     </div>
   `;
 
@@ -101,6 +166,20 @@ function renderShow(show) {
       .querySelector(`[data-download="${episode.id}"]`)
       .addEventListener("click", () => downloadScript(episode.title, episode.script));
   }
+
+  result
+    .querySelector(`[data-generate-live="${show.id}"]`)
+    .addEventListener("click", async () => {
+      const response = await fetch(`/api/shows/${show.id}/generate-live`, {
+        method: "POST",
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        window.alert(body.error ?? "Could not generate live script.");
+        return;
+      }
+      renderShow(body.show);
+    });
 }
 
 form.addEventListener("submit", async (event) => {
@@ -116,6 +195,7 @@ form.addEventListener("submit", async (event) => {
     durationMinutes: Number(document.querySelector("#durationMinutes").value),
     mode: document.querySelector("#mode").value,
     sourcePackId: sourcePackSelect.value,
+    narratorPresetId: narratorPresetSelect.value,
     storyType,
     characters
   };

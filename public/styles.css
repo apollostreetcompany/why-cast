@@ -138,6 +138,22 @@ button {
   margin-top: 18px;
 }
 
+.voice-samples {
+  display: grid;
+  gap: 10px;
+}
+
+.voice-sample {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fffaf2;
+}
+
+.voice-sample p {
+  margin: 6px 0;
+}
+
 .architecture {
   margin-top: 16px;
   padding: 16px;

@@ -7,12 +7,16 @@ import { buildAudioStackPlan } from "./lib/audio-stack";
 import { ShowRoom } from "./durable-objects/show-room";
 import { buildWorkflowDemo } from "./services/workflow-demo";
 import { DailyReminderWorkflow, ShowPipelineWorkflow } from "./workflows/show-pipeline";
+import { generateLiveEpisode } from "./services/live-generation";
+import { narratorPresets } from "./services/narrator-voices";
 
 interface Env {
   ASSETS?: Fetcher;
   SHOW_ROOMS: DurableObjectNamespace;
   SHOW_PIPELINE: Workflow<{ showId: string }>;
   DAILY_REMINDER: Workflow<{ showId: string }>;
+  OPENAI_API_KEY?: string;
+  OPENAI_MODEL?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -31,7 +35,8 @@ const requestSchema = z.object({
   mode: z.union([z.literal("one-off"), z.literal("serialized")]),
   sourcePackId: z.string().min(1),
   storyType: z.string().min(2).max(80),
-  characters: z.string().min(2).max(160)
+  characters: z.string().min(2).max(160),
+  narratorPresetId: z.string().optional(),
 });
 
 app.get("/api/health", (c) =>
@@ -58,6 +63,7 @@ app.get("/api/config", (c) =>
       label: `${sourcePack.provider} - ${sourcePack.topic}`,
       subject: sourcePack.subject
     })),
+    narratorPresets,
     architectureNotes: {
       serializedShows: "A Durable Object owns continuity, event history, and episode handoff for each show.",
       audioPipeline: "ElevenLabs Text to Speech + Sound Effects + Speech to Text are combined for narration, scene texture, and transcript QA.",
@@ -126,6 +132,14 @@ app.get("/api/shows/:showId/workflow-demo", async (c) => {
   return c.json(buildWorkflowDemo(show));
 });
 
+app.get("/api/narrators", (c) =>
+  c.json({
+    narratorPresets,
+    sampleMode: "browser-speech-synthesis",
+    elevenLabsReady: false,
+  }),
+);
+
 app.post("/api/shows/:showId/quiz/submit", async (c) => {
   const roomId = c.env.SHOW_ROOMS.idFromString(c.req.param("showId"));
   const room = c.env.SHOW_ROOMS.get(roomId);
@@ -153,6 +167,45 @@ app.post("/api/shows/:showId/quiz/submit", async (c) => {
     passed: result.passed,
     unlockedEpisodeNumber: result.unlockedEpisodeNumber,
     show: enrichShow(result.show),
+  });
+});
+
+app.post("/api/shows/:showId/generate-live", async (c) => {
+  const roomId = c.env.SHOW_ROOMS.idFromString(c.req.param("showId"));
+  const room = c.env.SHOW_ROOMS.get(roomId);
+  const response = await room.fetch("https://show-room/show");
+
+  if (response.status !== 200) {
+    return c.json({ error: "Show not found" }, 404);
+  }
+
+  if (!c.env.OPENAI_API_KEY) {
+    return c.json(
+      {
+        error: "OPENAI_API_KEY is not configured in the deployed worker.",
+      },
+      503,
+    );
+  }
+
+  const show = (await response.json()) as Show;
+  const generated = await generateLiveEpisode(c.env, show);
+  const updateResponse = await room.fetch("https://show-room/episode/live", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      title: generated.episode.title,
+      script: generated.episode.script,
+    }),
+  });
+  const updatedShow = (await updateResponse.json()) as Show;
+
+  return c.json({
+    show: enrichShow(updatedShow),
+    editor: generated.editor,
+    generationMode: "openai-live",
   });
 });
 

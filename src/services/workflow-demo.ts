@@ -4,6 +4,7 @@ import {
   buildStoryWriterPrompt,
   type PromptChildProfile,
 } from "../prompts/story-prompts";
+import { getNarratorPreset } from "./narrator-voices";
 import type { Show } from "../types";
 
 export interface WorkflowStepDemo {
@@ -107,6 +108,16 @@ function buildGeneratedDraft(show: Show, childProfiles: PromptChildProfile[]) {
   const namedKids = childProfiles.map((child) => child.name).join(" and ");
   const source = show.sourcePack;
 
+  if (firstEpisode?.scriptSource === "openai") {
+    return {
+      title: firstEpisode.title,
+      coldOpen: "Live model path generated the final draft for this episode.",
+      fullScript: firstEpisode.script,
+      lessonRecap: `Live script generated for ${show.sourcePack.topic}.`,
+      nextEpisodeHook: "The next episode hook will be regenerated after the continuity editor runs.",
+    };
+  }
+
   return {
     title: `${titleCase(show.storyType)} on the ${source.topic} Trail`,
     coldOpen: `${namedKids} hear the river before they see it, and the sound is carrying a clue no one else has noticed.`,
@@ -161,6 +172,7 @@ function buildContinuityMemory(show: Show, draft: WorkflowDemo["generatedDraft"]
 }
 
 function buildAiProduction(show: Show): WorkflowDemo["aiProduction"] {
+  const narrator = getNarratorPreset(show.narratorPresetId);
   const tone =
     show.sourcePack.subject === "history"
       ? "wonder-filled and cinematic"
@@ -189,8 +201,8 @@ function buildAiProduction(show: Show): WorkflowDemo["aiProduction"] {
 
   return {
     voiceCasting: {
-      voiceRole: "Mac, trusted tutor-storyteller",
-      tone,
+      voiceRole: narrator.label,
+      tone: `${tone}; ${narrator.subtitle.toLowerCase()}`,
       pacing: `Aim for a natural ${show.durationMinutes}-minute spoken rhythm with short pauses after each key reveal.`,
     },
     soundDesign,

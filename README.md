@@ -25,10 +25,14 @@ Audio-first educational storytelling for kids, built for a fast Cloudflare + Ele
 
 ## Demo API
 - `GET /api/health`
+- `GET /api/narrators`
 - `POST /api/shows`
 - `GET /api/shows/:showId`
 - `GET /api/shows/:showId/workflow-demo`
+- `POST /api/shows/:showId/generate-live`
+- `POST /api/shows/:showId/quiz/submit`
 
 ## Current Limits
-- Real D1, R2, Workflows, and ElevenLabs integrations are scaffold targets, not fully wired yet.
-- Audio preview currently uses browser speech synthesis while real TTS is added.
+- D1 and R2 are still the next storage layer to wire for production persistence and hosted audio files.
+- Real ElevenLabs server-side narration is still waiting on an ElevenLabs API key in the deployed Worker.
+- Narrator sampling currently uses browser speech synthesis on the site while the server-side audio path remains key-ready.

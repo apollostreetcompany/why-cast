@@ -18,6 +18,7 @@ export interface ShowRequest {
   sourcePackId: string;
   storyType: string;
   characters: string;
+  narratorPresetId?: string;
 }
 
 export interface Episode {
@@ -32,6 +33,7 @@ export interface Episode {
   script: string;
   citationLabel: string;
   audioUrl: string | null;
+  scriptSource?: "template" | "openai";
 }
 
 export interface UnlockQuiz {
@@ -66,6 +68,7 @@ export interface StoryEvent {
     | "show-created"
     | "continuity-locked"
     | "episode-queued"
+    | "episode-generated"
     | "audio-stack-planned"
     | "episode-reviewed";
   detail: string;
@@ -79,6 +82,7 @@ export interface Show {
   durationMinutes: number;
   storyType: string;
   characters: string;
+  narratorPresetId?: string;
   sourcePack: SourcePack;
   createdAt: string;
   episodes: Episode[];

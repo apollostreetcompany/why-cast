@@ -48,7 +48,8 @@ function buildReadyEpisode(request: ShowRequest, sourcePack: SourcePack): Episod
     continuitySummary: buildContinuitySummary(request, sourcePack, 1),
     script: buildScript(sourcePack, request),
     citationLabel: sourcePack.citationLabel,
-    audioUrl: null
+    audioUrl: null,
+    scriptSource: "template",
   };
 }
 
@@ -71,6 +72,7 @@ export function createShow(request: ShowRequest, explicitId?: string): Show {
     durationMinutes: request.durationMinutes,
     storyType: request.storyType,
     characters: request.characters,
+    narratorPresetId: request.narratorPresetId,
     sourcePack,
     createdAt: new Date().toISOString(),
     episodes: [firstEpisode, ...queuedEpisodes],
