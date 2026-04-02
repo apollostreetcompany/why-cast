@@ -26,14 +26,15 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Initialized git, created GitHub remote, and started branch `codex/feat/bead-001-foundation`.
 - [x] Created canonical project memory files and the adapted why-cast hackathon plan.
 - [x] Scaffolded a Cloudflare Worker MVP with static assets, API routes, curated source packs, tests, and a successful Wrangler dry run.
+- [x] Bead 001 committed: foundation docs, Worker scaffold, frontend MVP, and story-generation test coverage.
 
 ### Now
-- Bead 001: scaffold project memory, write the adapted why-cast execution plan, and stand up the initial Cloudflare app foundation.
+- Bead 002: wire D1-backed show persistence and replace the in-memory demo store.
 
 ### Next
-- Implement D1 schema and Worker API routes for onboarding/show creation.
-- Add a mock episode pipeline with continuity state and demo-ready output.
+- Add a mock or real async workflow path for episode generation status updates.
 - Wire real LLM + ElevenLabs integrations and deploy.
+- Pre-generate showcase stories and capture demo video assets.
 
 ## Open Questions
 - UNCONFIRMED: which LLM provider should be primary for generation during the hackathon.
