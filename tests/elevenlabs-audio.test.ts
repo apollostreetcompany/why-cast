@@ -34,12 +34,13 @@ describe("elevenlabs audio service", () => {
         ELEVENLABS_API_KEY: "test-key",
       },
       show,
+      show.episodes[0]!,
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain("/v1/text-to-speech/ErXwobaYiN019PkySvjV");
-    expect(url).toContain("output_format=mp3_44100_128");
+    expect(url).toContain("output_format=mp3_22050_32");
     expect(init.method).toBe("POST");
     expect(init.headers).toMatchObject({
       "Content-Type": "application/json",
@@ -85,11 +86,54 @@ describe("elevenlabs audio service", () => {
         ELEVENLABS_API_KEY: "test-key",
       },
       show,
+      show.episodes[0]!,
     );
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const payload = JSON.parse(String(init.body));
-    expect(payload.text.length).toBeLessThanOrEqual(1200);
+    expect(payload.text.length).toBeGreaterThan(1800);
+    expect(payload.text.length).toBeLessThanOrEqual(5000);
+  });
+
+  it("renders the selected episode instead of always using episode one", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new Uint8Array([1, 2, 3, 4]).buffer, {
+        status: 200,
+        headers: {
+          "Content-Type": "audio/mpeg",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const show = createShow({
+      ages: [7],
+      durationMinutes: 4,
+      mode: "serialized",
+      sourcePackId: "khan-sci-photosynthesis",
+      storyType: "Adventure",
+      characters: "Luna and Mac",
+      narratorPresetId: "mac-playful-spark",
+    });
+    show.episodes[1] = {
+      ...show.episodes[1]!,
+      status: "ready",
+      script:
+        "Episode two begins at the glass tower. Luna and Mac hear the roots clicking beneath the floor and follow the clue deeper into the mystery.",
+    };
+
+    await synthesizeEpisodeAudio(
+      {
+        ELEVENLABS_API_KEY: "test-key",
+      },
+      show,
+      show.episodes[1]!,
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(String(init.body));
+    expect(payload.text).toContain("Episode two begins at the glass tower");
+    expect(payload.text).not.toContain("Welcome to why-cast");
   });
 
   it("renders narrator samples with the preset sample line", async () => {
@@ -126,7 +170,7 @@ describe("elevenlabs audio service", () => {
       characters: "Ada",
     });
 
-    await expect(synthesizeEpisodeAudio({}, show)).rejects.toThrow(
+    await expect(synthesizeEpisodeAudio({}, show, show.episodes[0]!)).rejects.toThrow(
       "ELEVENLABS_API_KEY is not configured.",
     );
   });

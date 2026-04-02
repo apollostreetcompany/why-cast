@@ -1,4 +1,8 @@
-import { buildStoryEditorPrompt, buildStoryWriterPrompt } from "../prompts/story-prompts";
+import {
+  buildStoryCompellingValidatorPrompt,
+  buildStoryWriterPrompt,
+} from "../prompts/story-prompts";
+import { analyzeScriptTiming } from "../lib/script-metrics";
 import { getNarratorPreset } from "./narrator-voices";
 import type { Episode, Show } from "../types";
 
@@ -15,11 +19,20 @@ interface WriterOutput {
   next_episode_hook: string;
 }
 
-interface EditorOutput {
-  edited_script: string;
-  factual_integrity_notes: string[];
-  continuity_notes: string[];
-  risks_or_fixes_still_needed: string[];
+interface CompellingCheckOutput {
+  isCompelling: boolean;
+  reason: string;
+}
+
+function pickString(source: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+
+  return "";
 }
 
 function splitCharacterNames(characters: string): string[] {
@@ -70,12 +83,56 @@ function parseJsonBlock<T>(text: string): T {
   return JSON.parse(raw.trim()) as T;
 }
 
-function sanitizeEditedScript(text: string): string {
-  return text
-    .replace(/^Title:\s.*(?:\r?\n)+/i, "")
-    .replace(/(?:^|\n)Cold Open:\s*/gi, "\n")
-    .replace(/(?:^|\n)Lesson Recap:\s*/gi, "\nRecap: ")
-    .replace(/(?:^|\n)Next Episode Hook:\s*/gi, "\nNext time: ")
+function normalizeWriterOutput(output: Record<string, unknown>): WriterOutput {
+  return {
+    title: pickString(output, "title", "Title"),
+    cold_open: pickString(output, "cold_open", "coldOpen", "Cold Open"),
+    full_script: pickString(output, "full_script", "fullScript", "Full Script"),
+    lesson_recap: pickString(output, "lesson_recap", "lessonRecap", "Lesson Recap"),
+    next_episode_hook: pickString(
+      output,
+      "next_episode_hook",
+      "nextEpisodeHook",
+      "Next Episode Hook",
+    ),
+  };
+}
+
+function normalizeCompellingCheck(output: Record<string, unknown>): CompellingCheckOutput {
+  return {
+    isCompelling:
+      typeof output.is_compelling === "boolean"
+        ? output.is_compelling
+        : typeof output.isCompelling === "boolean"
+          ? output.isCompelling
+          : false,
+    reason: pickString(output, "reason", "Reason"),
+  };
+}
+
+function buildPreviousEpisodeSummary(show: Show, episodeNumber: number): string {
+  if (episodeNumber <= 1) {
+    return "This is the first episode in the series.";
+  }
+
+  const previousEpisode = show.episodes.find((episode) => episode.episodeNumber === episodeNumber - 1);
+  if (!previousEpisode) {
+    return "The previous episode summary was unavailable. Keep continuity gentle and clear.";
+  }
+
+  return `${previousEpisode.title}. ${previousEpisode.continuitySummary}`;
+}
+
+function buildSpokenScript(writer: WriterOutput): string {
+  return [
+    writer.cold_open.trim(),
+    writer.full_script.trim(),
+    `Recap: ${writer.lesson_recap.trim()}`,
+    `Next time: ${writer.next_episode_hook.trim()}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -110,70 +167,125 @@ async function createResponse(
   return extractText(json);
 }
 
-export async function generateLiveEpisode(env: OpenAIEnv, show: Show): Promise<{
+export async function generateLiveEpisode(
+  env: OpenAIEnv,
+  show: Show,
+  episodeId: string,
+): Promise<{
   episode: Partial<Episode>;
-  editor: EditorOutput;
+  validation: CompellingCheckOutput;
+  attempts: number;
 }> {
+  const targetEpisode = show.episodes.find((episode) => episode.id === episodeId);
+  if (!targetEpisode) {
+    throw new Error("Episode not found for live generation.");
+  }
+
   const narrator = getNarratorPreset(show.narratorPresetId);
+  const previousEpisodeSummary = buildPreviousEpisodeSummary(show, targetEpisode.episodeNumber);
+  const targetWords = Math.round(show.durationMinutes * narrator.wordsPerMinute);
+  const minWords = Math.round(targetWords * 0.88);
+  const maxWords = Math.round(targetWords * 1.16);
+
   const writerPrompt = buildStoryWriterPrompt({
     hostName: "Mac",
     children: buildChildren(show),
     show,
     sourcePack: show.sourcePack,
-    episodeNumber: 1,
-    previousEpisodeSummary: "This is the first episode in the series.",
+    episodeNumber: targetEpisode.episodeNumber,
+    previousEpisodeSummary,
     additionalPreferences: [
       `Narrator delivery style: ${narrator.label} - ${narrator.tone}`,
+      `Aim for roughly ${targetWords} spoken words, with an acceptable range of ${minWords} to ${maxWords} words.`,
+      `The finished script must sound like a real ${show.durationMinutes}-minute performance for ${narrator.label}.`,
       "Keep the story memorable enough to anchor a repeat-listen audio experience.",
     ],
   });
 
-  const writerText = await createResponse(
-    env,
-    writerPrompt,
-    [
-      "Generate the episode now.",
-      "Return only valid JSON.",
-      'Use this exact shape: {"title":"...","cold_open":"...","full_script":"...","lesson_recap":"...","next_episode_hook":"..."}',
-    ].join(" "),
-  );
-  const writer = parseJsonBlock<WriterOutput>(writerText);
+  let lastWriter: WriterOutput | null = null;
+  let lastTiming = null as ReturnType<typeof analyzeScriptTiming> | null;
+  let attempts = 0;
 
-  const editorPrompt = buildStoryEditorPrompt({
+  while (attempts < 3) {
+    attempts += 1;
+    const writerText = await createResponse(
+      env,
+      writerPrompt,
+      [
+        "Generate the episode now.",
+        "Return only valid JSON.",
+        'Use this exact shape: {"title":"...","cold_open":"...","full_script":"...","lesson_recap":"...","next_episode_hook":"..."}',
+        `Episode target: ${show.durationMinutes} minutes spoken aloud.`,
+        `Spoken word budget: ${minWords}-${maxWords} words.`,
+        attempts > 1 && lastTiming
+          ? `Previous attempt was ${lastTiming.durationCompliance}. Retry with a script that lands inside the word budget.`
+          : "Hit the word budget on this attempt.",
+      ].join(" "),
+    );
+    const writer = normalizeWriterOutput(parseJsonBlock<Record<string, unknown>>(writerText));
+    const script = buildSpokenScript(writer);
+    const timing = analyzeScriptTiming(script, show.durationMinutes, narrator.wordsPerMinute);
+
+    lastWriter = writer;
+    lastTiming = timing;
+
+    if (timing.durationCompliance === "pass") {
+      break;
+    }
+  }
+
+  if (!lastWriter || !lastTiming) {
+    throw new Error("Live generation did not produce a usable script.");
+  }
+
+  if (lastTiming.durationCompliance !== "pass") {
+    throw new Error(
+      `Generated script missed the spoken-time target for a ${show.durationMinutes}-minute episode. Please regenerate.`,
+    );
+  }
+
+  const finalScript = buildSpokenScript(lastWriter);
+  const validatorPrompt = buildStoryCompellingValidatorPrompt({
     hostName: "Mac",
     children: buildChildren(show),
     show,
     sourcePack: show.sourcePack,
-    episodeNumber: 1,
-    previousEpisodeSummary: "This is the first episode in the series.",
+    episodeNumber: targetEpisode.episodeNumber,
+    previousEpisodeSummary,
     additionalPreferences: [
       `Narrator delivery style: ${narrator.label} - ${narrator.tone}`,
+      `This script currently lands at about ${lastTiming.estimatedDurationSec} seconds, which matches the time target.`,
     ],
   });
 
-  const editorText = await createResponse(
+  const validatorText = await createResponse(
     env,
-    editorPrompt,
+    validatorPrompt,
     [
-      "Edit the following draft and return only valid JSON.",
-      'Use this exact shape: {"edited_script":"...","factual_integrity_notes":["..."],"continuity_notes":["..."],"risks_or_fixes_still_needed":["..."]}',
+      "Judge the script as written.",
+      "Return only valid JSON.",
       "",
-      `Title: ${writer.title}`,
-      `Cold Open: ${writer.cold_open}`,
-      `Full Script: ${writer.full_script}`,
-      `Lesson Recap: ${writer.lesson_recap}`,
-      `Next Episode Hook: ${writer.next_episode_hook}`,
+      finalScript,
     ].join("\n"),
   );
-  const editor = parseJsonBlock<EditorOutput>(editorText);
+  const validation = normalizeCompellingCheck(
+    parseJsonBlock<Record<string, unknown>>(validatorText),
+  );
 
   return {
     episode: {
-      title: writer.title,
-      script: sanitizeEditedScript(editor.edited_script),
+      title: lastWriter.title,
+      status: "ready",
+      script: finalScript,
       audioUrl: null,
       scriptSource: "openai",
+      wordCount: lastTiming.wordCount,
+      estimatedDurationSec: lastTiming.estimatedDurationSec,
+      durationCompliance: lastTiming.durationCompliance,
+      compelling: validation.isCompelling,
+      compellingReason: validation.reason,
     },
-    editor,
+    validation,
+    attempts,
   };
 }

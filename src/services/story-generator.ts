@@ -1,6 +1,9 @@
 import { buildContinuitySummary, buildEpisodeTitle, buildLearningGoal, buildQueuedEpisodePreview } from "./editor";
 import { buildNotificationPlan, buildUnlockQuiz, buildWorkflowRuntime } from "./feedback-loop";
+import { analyzeScriptTiming } from "../lib/script-metrics";
+import { generateShowSlug } from "../lib/show-slugs";
 import { getSourcePack } from "../lib/source-packs";
+import { getNarratorPreset } from "./narrator-voices";
 import type { Episode, Show, ShowRequest, SourcePack, StoryEvent } from "../types";
 
 function createId(prefix: string): string {
@@ -24,19 +27,26 @@ function buildScript(sourcePack: SourcePack, request: ShowRequest): string {
     request.ages.length === 1
       ? `This story is tuned for a ${request.ages[0]}-year-old listener.`
       : `This story is tuned for listeners ages ${request.ages.join(", ")}.`;
+  const storyHook = buildStoryHook(sourcePack, request);
 
   return [
     `Welcome to why-cast. ${agesLine}`,
-    `Tonight's ${request.storyType} begins when ${buildStoryHook(sourcePack, request)}`,
-    `The lesson thread comes from ${sourcePack.citationLabel}. It teaches ${sourcePack.concept}.`,
-    `Trusted fact: ${sourcePack.transcriptExcerpt}`,
-    `In the story, the characters test the idea in one small scene, repeat the key concept out loud, and connect it to something a kid can picture right away.`,
-    `Before the end, the narrator reviews the big idea one more time and asks a tiny recall question so the next episode has something to build on.`,
-    `That gives us a ${request.durationMinutes}-minute episode that feels like story first, but still stays grounded in the source.`
+    `Tonight's ${request.storyType} begins when ${storyHook}`,
+    `${request.characters} notice one strange detail right away, and Mac asks them to follow it instead of rushing past it.`,
+    `The lesson thread comes from ${sourcePack.citationLabel}, so every reveal stays grounded in a trusted idea about ${sourcePack.topic}.`,
+    `The key fact under the adventure is this: ${sourcePack.transcriptExcerpt}`,
+    `Mac turns that fact into a scene the children can picture, asks them to say the big idea out loud, and then tests it with one concrete example inside the story world.`,
+    `Instead of lecturing, the narrator keeps the pace moving with one discovery, one reaction, and one small question that helps the lesson stick.`,
+    `Before the end, ${request.characters} repeat what they learned in simple words and connect it to something a kid can imagine seeing with their own eyes.`,
+    `The episode closes with a quick recap and one curiosity hook so the next part of the series has somewhere real to go.`,
   ].join(" ");
 }
 
 function buildReadyEpisode(request: ShowRequest, sourcePack: SourcePack): Episode {
+  const narrator = getNarratorPreset(request.narratorPresetId);
+  const script = buildScript(sourcePack, request);
+  const timing = analyzeScriptTiming(script, request.durationMinutes, narrator.wordsPerMinute);
+
   return {
     id: createId("ep"),
     episodeNumber: 1,
@@ -46,15 +56,19 @@ function buildReadyEpisode(request: ShowRequest, sourcePack: SourcePack): Episod
     durationTargetSec: request.durationMinutes * 60,
     learningGoal: buildLearningGoal(sourcePack, request.ages),
     continuitySummary: buildContinuitySummary(request, sourcePack, 1),
-    script: buildScript(sourcePack, request),
+    script,
     citationLabel: sourcePack.citationLabel,
     audioUrl: null,
     scriptSource: "template",
+    wordCount: timing.wordCount,
+    estimatedDurationSec: timing.estimatedDurationSec,
+    durationCompliance: timing.durationCompliance,
   };
 }
 
-export function createShow(request: ShowRequest, explicitId?: string): Show {
+export function createShow(request: ShowRequest, explicitId?: string, explicitSlug?: string): Show {
   const sourcePack = getSourcePack(request.sourcePackId);
+  const slug = explicitSlug ?? generateShowSlug();
   const firstEpisode = buildReadyEpisode(request, sourcePack);
   const queuedEpisodes =
     request.mode === "serialized"
@@ -67,6 +81,7 @@ export function createShow(request: ShowRequest, explicitId?: string): Show {
 
   const show: Show = {
     id: explicitId ?? createId("show"),
+    slug,
     mode: request.mode,
     ages: request.ages,
     durationMinutes: request.durationMinutes,

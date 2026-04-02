@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { buildCastPath } from "../lib/show-slugs";
 import {
+  Check,
   ChevronDown,
   Compass,
+  Copy,
   Globe,
   HelpCircle,
   Lightbulb,
@@ -56,10 +59,16 @@ interface Episode {
   citationLabel: string;
   script: string;
   audioUrl: string | null;
+  wordCount?: number;
+  estimatedDurationSec?: number;
+  durationCompliance?: "pass" | "short" | "long";
+  compelling?: boolean;
+  compellingReason?: string;
 }
 
 interface ShowResponse {
   id: string;
+  slug: string;
   mode: string;
   ages: number[];
   storyType: string;
@@ -163,6 +172,28 @@ function speakFallbackSample(preset: NarratorPreset) {
   window.speechSynthesis.speak(utterance);
 }
 
+function formatDurationLabel(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`;
+}
+
+function getDurationStatusCopy(episode: Episode) {
+  if (!episode.estimatedDurationSec || !episode.durationCompliance) {
+    return null;
+  }
+
+  if (episode.durationCompliance === "pass") {
+    return `tracking ${formatDurationLabel(episode.estimatedDurationSec)}`;
+  }
+
+  if (episode.durationCompliance === "short") {
+    return `reading short at ${formatDurationLabel(episode.estimatedDurationSec)}`;
+  }
+
+  return `running long at ${formatDurationLabel(episode.estimatedDurationSec)}`;
+}
+
 function SelectField(props: {
   label: string;
   value: string;
@@ -198,18 +229,34 @@ function SelectField(props: {
 function ResultPanel(props: {
   show: ShowResponse;
   narratorLabel: string;
+  selectedEpisodeId: string | null;
+  copiedShareLink: boolean;
   isGeneratingLive: boolean;
   isRenderingAudio: boolean;
-  onGenerateLive: () => Promise<void>;
-  onRenderAudio: () => Promise<void>;
+  onSelectEpisode: (episodeId: string) => void;
+  onGenerateLive: (episodeId: string) => Promise<void>;
+  onRenderAudio: (episodeId: string) => Promise<void>;
+  onCopyShareLink: () => Promise<void>;
   onQuizAnswer: (index: number) => Promise<void>;
 }) {
+  const selectedEpisode =
+    props.show.episodes.find((episode) => episode.id === props.selectedEpisodeId) ?? props.show.episodes[0];
+  const shareUrl = typeof window === "undefined"
+    ? buildCastPath(props.show.slug)
+    : new URL(buildCastPath(props.show.slug), window.location.origin).toString();
+  const durationStatusCopy = selectedEpisode ? getDurationStatusCopy(selectedEpisode) : null;
+  const canGenerateLive = Boolean(selectedEpisode) && selectedEpisode.status !== "quiz-locked";
+  const canRenderAudio =
+    Boolean(selectedEpisode?.script?.trim()) &&
+    selectedEpisode?.status !== "quiz-locked" &&
+    selectedEpisode?.durationCompliance === "pass";
+
   return (
     <section className="mx-auto mt-12 w-full max-w-6xl">
       <div className="overflow-hidden rounded-[2rem] border border-stone-200 bg-white/85 shadow-paper">
-        <div className="grid gap-8 p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
-          <div>
-            <div className="mb-4 flex flex-wrap gap-2">
+        <div className="grid gap-6 p-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:p-8">
+          <aside className="space-y-4">
+            <div className="flex flex-wrap gap-2">
               <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700">
                 {props.show.mode} mode
               </span>
@@ -220,80 +267,67 @@ function ResultPanel(props: {
                 {props.narratorLabel}
               </span>
             </div>
-            <h2 className="font-display text-3xl font-extrabold text-stone-900 md:text-4xl">
-              {props.show.episodes[0]?.title}
-            </h2>
-            <p className="mt-3 max-w-2xl text-stone-600">
-              Your first episode is ready. Rewrite it, render the audio, and keep going.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => void props.onGenerateLive()}
-                disabled={props.isGeneratingLive}
-                className="rounded-full bg-violet-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-violet-700 disabled:opacity-75"
-              >
-                {props.isGeneratingLive ? "Generating..." : "Generate live script"}
-              </button>
-              <button
-                type="button"
-                onClick={() => void props.onRenderAudio()}
-                disabled={props.isRenderingAudio}
-                className="rounded-full bg-orange-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-600 disabled:opacity-75"
-              >
-                {props.isRenderingAudio ? "Rendering..." : "Render studio audio"}
-              </button>
-            </div>
-
-            <div className="mt-6 grid gap-4">
-              {props.show.episodes.map((episode) => (
-                <article
-                  key={episode.id}
-                  className="rounded-[1.4rem] border border-stone-200 bg-stone-50/90 p-4"
-                >
-                  <div className="mb-2 flex items-center justify-between gap-4">
-                    <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
-                      {episode.status} · {Math.round(episode.durationTargetSec / 60)} min
-                    </p>
-                    <p className="text-xs text-stone-400">{episode.citationLabel}</p>
-                  </div>
-                  <h3 className="text-lg font-bold text-stone-800">{episode.title}</h3>
-                  <p className="mt-1 text-sm text-stone-500">{episode.continuitySummary}</p>
-                  <p className="line-clamp-2 mt-3 text-sm leading-6 text-stone-700">
-                    {episode.script}
-                  </p>
-                  {episode.audioUrl ? (
-                    <div className="mt-4 space-y-3">
-                      <audio className="w-full" controls src={episode.audioUrl} />
-                      <a
-                        href={episode.audioUrl}
-                        className="inline-flex rounded-full border border-stone-200 px-4 py-2 text-sm font-bold text-stone-700 transition hover:border-violet-300"
-                      >
-                        Download audio
-                      </a>
-                    </div>
-                  ) : null}
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-5">
             <div className="rounded-[1.5rem] border border-stone-200 bg-white/75 p-5">
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
-                Series note
+                Saved cast URL
               </p>
-              <p className="mt-3 text-sm leading-6 text-stone-700">{props.show.continuityAnchor}</p>
-              <div className="mt-4 space-y-2 text-sm text-stone-600">
-                <p>
-                  <span className="font-semibold text-stone-800">Source:</span>{" "}
-                  {props.show.sourcePack.provider} - {props.show.sourcePack.topic}
-                </p>
-                <p>
-                  <span className="font-semibold text-stone-800">Voice:</span> {props.narratorLabel}
-                </p>
+              <p className="mt-2 text-sm leading-6 text-stone-500">
+                Four real words, so you can reopen this cast later.
+              </p>
+              <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50/90 px-4 py-3 text-sm font-semibold text-stone-700">
+                {shareUrl}
+              </div>
+              <button
+                type="button"
+                onClick={() => void props.onCopyShareLink()}
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-stone-200 px-4 py-2 text-sm font-bold text-stone-700 transition hover:border-violet-300"
+              >
+                {props.copiedShareLink ? <Check size={16} className="text-emerald-600" /> : <Copy size={16} />}
+                {props.copiedShareLink ? "Copied" : "Copy link"}
+              </button>
+            </div>
+
+            <div className="rounded-[1.5rem] border border-stone-200 bg-stone-50/70 p-4">
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
+                Episodes
+              </p>
+              <div className="mt-3 grid gap-3">
+                {props.show.episodes.map((episode) => {
+                  const isSelected = episode.id === selectedEpisode?.id;
+
+                  return (
+                    <button
+                      key={episode.id}
+                      type="button"
+                      onClick={() => props.onSelectEpisode(episode.id)}
+                      className={`rounded-[1.35rem] border px-4 py-4 text-left transition ${
+                        isSelected
+                          ? "border-violet-300 bg-violet-50 shadow-[0_14px_26px_rgba(124,58,237,0.12)]"
+                          : "border-stone-200 bg-white/85 hover:border-violet-200"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
+                          Episode {episode.episodeNumber}
+                        </p>
+                        <span
+                          className={`rounded-full px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.14em] ${
+                            isSelected
+                              ? "bg-violet-100 text-violet-700"
+                              : "bg-stone-100 text-stone-500"
+                          }`}
+                        >
+                          {episode.status}
+                        </span>
+                      </div>
+                      <h3 className="mt-2 text-base font-bold text-stone-900">{episode.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-stone-500">{episode.continuitySummary}</p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
+
             {props.show.unlockQuiz && !props.show.unlockQuiz.passed ? (
               <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-5">
                 <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-700">
@@ -319,6 +353,133 @@ function ResultPanel(props: {
                 ) : null}
               </div>
             ) : null}
+          </aside>
+
+          <div className="space-y-5">
+            <div className="rounded-[1.7rem] border border-stone-200 bg-white/80 p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
+                    Selected script
+                  </p>
+                  <h2 className="mt-2 font-display text-3xl font-extrabold text-stone-900 md:text-4xl">
+                    {selectedEpisode?.title}
+                  </h2>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+                    {selectedEpisode?.continuitySummary}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => selectedEpisode && void props.onGenerateLive(selectedEpisode.id)}
+                    disabled={!selectedEpisode || !canGenerateLive || props.isGeneratingLive}
+                    className="rounded-full bg-violet-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {props.isGeneratingLive ? "Generating..." : "Regenerate script"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectedEpisode && void props.onRenderAudio(selectedEpisode.id)}
+                    disabled={!selectedEpisode || !canRenderAudio || props.isRenderingAudio}
+                    className="rounded-full bg-orange-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {props.isRenderingAudio ? "Rendering..." : "Render studio audio"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] text-stone-600">
+                  target {Math.round((selectedEpisode?.durationTargetSec ?? 0) / 60)} min
+                </span>
+                {durationStatusCopy ? (
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] ${
+                      selectedEpisode?.durationCompliance === "pass"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {durationStatusCopy}
+                  </span>
+                ) : null}
+                {selectedEpisode?.compelling === true ? (
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-700">
+                    compelling: yes
+                  </span>
+                ) : selectedEpisode?.compelling === false ? (
+                  <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] text-red-700">
+                    compelling: no
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
+                    compelling check pending
+                  </span>
+                )}
+              </div>
+
+              {selectedEpisode?.status === "quiz-locked" ? (
+                <div className="mt-5 rounded-[1.3rem] border border-amber-200 bg-amber-50 px-4 py-4 text-sm font-semibold text-amber-800">
+                  Pass the family quiz first, then this episode unlocks for generation.
+                </div>
+              ) : null}
+              {selectedEpisode?.durationCompliance && selectedEpisode.durationCompliance !== "pass" ? (
+                <div className="mt-5 rounded-[1.3rem] border border-amber-200 bg-amber-50 px-4 py-4 text-sm font-semibold text-amber-800">
+                  This draft is not long enough yet for the requested runtime. Regenerate the script before rendering audio.
+                </div>
+              ) : null}
+              {selectedEpisode?.compelling === false && selectedEpisode.compellingReason ? (
+                <div className="mt-5 rounded-[1.3rem] border border-red-200 bg-red-50 px-4 py-4 text-sm font-semibold text-red-700">
+                  Validator said no: {selectedEpisode.compellingReason}
+                </div>
+              ) : null}
+
+              <div className="mt-6 rounded-[1.5rem] border border-stone-200 bg-[#fcfaf5] p-5">
+                <div className="mb-3 flex items-center justify-between gap-4">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
+                    Full script
+                  </p>
+                  <p className="text-xs text-stone-400">{selectedEpisode?.citationLabel}</p>
+                </div>
+                <div className="max-h-[34rem] overflow-y-auto pr-2">
+                  <p className="whitespace-pre-wrap text-[15px] leading-7 text-stone-700">
+                    {selectedEpisode?.script}
+                  </p>
+                </div>
+              </div>
+
+              {selectedEpisode?.audioUrl ? (
+                <div className="mt-5 rounded-[1.5rem] border border-stone-200 bg-stone-50/80 p-5">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
+                    Rendered audio
+                  </p>
+                  <audio className="mt-4 w-full" controls src={selectedEpisode.audioUrl} />
+                  <a
+                    href={selectedEpisode.audioUrl}
+                    className="mt-4 inline-flex rounded-full border border-stone-200 px-4 py-2 text-sm font-bold text-stone-700 transition hover:border-violet-300"
+                  >
+                    Download audio
+                  </a>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="rounded-[1.5rem] border border-stone-200 bg-white/75 p-5">
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
+                Series note
+              </p>
+              <p className="mt-3 text-sm leading-6 text-stone-700">{props.show.continuityAnchor}</p>
+              <div className="mt-4 space-y-2 text-sm text-stone-600">
+                <p>
+                  <span className="font-semibold text-stone-800">Source:</span>{" "}
+                  {props.show.sourcePack.provider} - {props.show.sourcePack.topic}
+                </p>
+                <p>
+                  <span className="font-semibold text-stone-800">Voice:</span> {props.narratorLabel}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -555,6 +716,8 @@ export function WhyCastLanding() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [config, setConfig] = useState<ConfigResponse | null>(null);
   const [show, setShow] = useState<ShowResponse | null>(null);
+  const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingLive, setIsGeneratingLive] = useState(false);
@@ -599,6 +762,43 @@ export function WhyCastLanding() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!show) {
+      return;
+    }
+
+    if (!selectedEpisodeId || !show.episodes.some((episode) => episode.id === selectedEpisodeId)) {
+      setSelectedEpisodeId(show.episodes[0]?.id ?? null);
+    }
+
+    const nextPath = buildCastPath(show.slug);
+    if (window.location.pathname !== nextPath) {
+      window.history.replaceState({}, "", nextPath);
+    }
+  }, [selectedEpisodeId, show]);
+
+  useEffect(() => {
+    const match = window.location.pathname.match(/^\/casts\/([a-z-]+)$/);
+    if (!match) {
+      return;
+    }
+
+    async function loadSavedCast(slug: string) {
+      const response = await fetch(`/api/casts/${slug}`);
+      const data = (await response.json()) as ShowResponse & { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Could not load the saved cast.");
+      }
+
+      setShow(data);
+      setSelectedEpisodeId(data.episodes[0]?.id ?? null);
+    }
+
+    void loadSavedCast(match[1]).catch((reason: unknown) => {
+      setError(reason instanceof Error ? reason.message : "Could not load the saved cast.");
+    });
+  }, []);
+
   const narratorLabel = useMemo(() => {
     return (
       config?.narratorPresets.find((preset) => preset.id === show?.narratorPresetId)?.label ??
@@ -618,6 +818,21 @@ export function WhyCastLanding() {
       speakFallbackSample(preset);
     } catch {
       setError("Could not play the narrator sample.");
+    }
+  }
+
+  async function copyShareLink() {
+    if (!show) {
+      return;
+    }
+
+    const shareUrl = new URL(buildCastPath(show.slug), window.location.origin).toString();
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedShareLink(true);
+      window.setTimeout(() => setCopiedShareLink(false), 1800);
+    } catch {
+      setError("Could not copy the cast link.");
     }
   }
 
@@ -648,6 +863,8 @@ export function WhyCastLanding() {
       }
 
       setShow(data);
+      setSelectedEpisodeId(data.episodes[0]?.id ?? null);
+      setCopiedShareLink(false);
       setIsModalOpen(false);
       window.setTimeout(() => {
         resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -674,7 +891,7 @@ export function WhyCastLanding() {
     setShow(data.show);
   }
 
-  async function handleGenerateLive() {
+  async function handleGenerateLive(episodeId: string) {
     if (!show) {
       return;
     }
@@ -682,7 +899,7 @@ export function WhyCastLanding() {
     setIsGeneratingLive(true);
     setError(null);
     try {
-      await refreshShow(`/api/shows/${show.id}/generate-live`);
+      await refreshShow(`/api/shows/${show.id}/episodes/${episodeId}/generate-live`);
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : "Could not regenerate the live script.");
     } finally {
@@ -690,7 +907,7 @@ export function WhyCastLanding() {
     }
   }
 
-  async function handleRenderAudio() {
+  async function handleRenderAudio(episodeId: string) {
     if (!show) {
       return;
     }
@@ -698,7 +915,7 @@ export function WhyCastLanding() {
     setIsRenderingAudio(true);
     setError(null);
     try {
-      await refreshShow(`/api/shows/${show.id}/render-audio`);
+      await refreshShow(`/api/shows/${show.id}/episodes/${episodeId}/render-audio`);
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : "Could not render the audio.");
     } finally {
@@ -771,8 +988,16 @@ export function WhyCastLanding() {
               <span className="text-2xl font-black uppercase tracking-[0.12em] md:text-5xl">YOUR</span>
             </div>
 
-            <div className="flex min-h-[60vh] flex-col items-center justify-end pb-20 text-center md:min-h-[680px] md:pb-10">
-              <div className="mb-6 flex min-h-[2rem] items-center gap-2 text-base italic text-stone-500 md:text-xl">
+            <div className="flex min-h-[60vh] flex-col items-center justify-center pb-10 pt-24 text-center md:min-h-[680px] md:pt-16">
+              <motion.h1
+                className="font-display text-6xl font-extrabold leading-[0.9] text-stone-900 md:text-[8.5rem]"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+              >
+                Curiosity
+              </motion.h1>
+              <div className="mt-6 mb-2 flex min-h-[2rem] items-center gap-2 text-base italic text-stone-500 md:text-xl">
                 <HelpCircle size={18} className="text-violet-500" />
                 <AnimatePresence mode="wait">
                   <motion.span
@@ -786,36 +1011,22 @@ export function WhyCastLanding() {
                   </motion.span>
                 </AnimatePresence>
               </div>
-            <motion.h1
-                className="font-display text-6xl font-extrabold leading-[0.9] text-stone-900 md:text-[8.5rem]"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-            >
-                Curiosity
-            </motion.h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 md:text-lg">
                 Ask one good why. We turn it into a short story your kid will actually listen to.
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-4">
-              <motion.button
-                type="button"
-                onClick={() => setIsModalOpen(true)}
-                className="rounded-[1.6rem] bg-[linear-gradient(135deg,#7c3aed_0%,#a855f7_28%,#ec4899_72%,#f59e0b_100%)] px-8 py-5 text-lg font-black text-white shadow-paper"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.99 }}
-              >
-                <span className="flex items-center gap-3">
-                  <Play size={20} fill="white" />
-                  Create your WhyCast
-                </span>
-              </motion.button>
-              <a
-                href="#live-demo"
-                className="rounded-[1.6rem] border border-stone-200 bg-white/80 px-8 py-5 text-lg font-bold text-stone-700 transition hover:border-violet-300"
-              >
-                  See one in action
-              </a>
+                <motion.button
+                  type="button"
+                  onClick={() => setIsModalOpen(true)}
+                  className="rounded-[1.6rem] bg-[linear-gradient(135deg,#7c3aed_0%,#a855f7_28%,#ec4899_72%,#f59e0b_100%)] px-8 py-5 text-lg font-black text-white shadow-paper"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.99 }}
+                >
+                  <span className="flex items-center gap-3">
+                    <Play size={20} fill="white" />
+                    Create your WhyCast
+                  </span>
+                </motion.button>
               </div>
 
               <p className="mt-6 text-sm font-medium text-stone-400">
@@ -866,10 +1077,14 @@ export function WhyCastLanding() {
             <ResultPanel
               show={show}
               narratorLabel={narratorLabel}
+              selectedEpisodeId={selectedEpisodeId}
+              copiedShareLink={copiedShareLink}
               isGeneratingLive={isGeneratingLive}
               isRenderingAudio={isRenderingAudio}
+              onSelectEpisode={setSelectedEpisodeId}
               onGenerateLive={handleGenerateLive}
               onRenderAudio={handleRenderAudio}
+              onCopyShareLink={copyShareLink}
               onQuizAnswer={handleQuizAnswer}
             />
           ) : (

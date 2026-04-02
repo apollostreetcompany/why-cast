@@ -25,6 +25,10 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 11. Ship the polished landing page as a React + Vite frontend served by the same Worker, while preserving the existing API and demo routes.
 12. Trim live-generated scripts before TTS so the hackathon-era Durable Object audio storage path stays reliable until R2 takes over.
 13. Simplify the landing page back toward an editorial collage aesthetic: minimal copy, fewer sections, no stack-marketing clutter, and a hero composition that echoes the original paper-cutout reference.
+14. New shows should get deterministic four-word public slugs and use those names to derive their Durable Object identity, so a cast can be reopened later at a human-readable URL without adding D1 first.
+15. Episode generation and audio rendering should be selection-based, not implicitly pinned to Episode 1, so the UI can clearly target the current script and serialized episodes can be worked on in order.
+16. Live generation should enforce spoken-duration budgets and use a non-editing yes/no validator for “compelling” checks; if a draft fails timing or validation, regenerate rather than silently editing it.
+17. Episode audio stored in Durable Object SQLite should use a smaller MP3 output format than narrator samples, because full-length 3-5 minute renders can exceed SQLite blob limits at the previous bitrate.
 
 ## State
 
@@ -54,9 +58,14 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Bead 008 committed and deployed: the create modal now scrolls correctly on shorter viewports.
 - [x] Simplified the landing page hero and demo framing to match the original collage-like vibe, and removed the supplementary Cloudflare-heavy marketing copy and pill clutter from the user-facing experience.
 - [x] Bead 009 deployed: the live page now uses a cleaner editorial composition while preserving the real demo flow.
+- [x] Added deterministic four-word saved-cast URLs and a slug-based API lookup route that can reopen a show later without D1.
+- [x] Switched the live demo into a selected-episode workspace with a full script viewer, clear episode highlighting, and episode-specific generate/render actions.
+- [x] Hardened live generation with spoken-duration targeting plus a non-editing compelling validator, and blocked audio renders when the selected draft is too short.
+- [x] Lowered stored episode MP3 bitrate so longer renders fit in Durable Object storage again.
+- [x] Bead 010 deployed: production now supports slug lookups, episode-specific generate/render flows, and duration-verified narration.
 
 ### Now
-- Bead 010: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
+- Bead 011: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
 
 ### Next
 - Add R2-backed audio hosting once longer-lived asset storage matters more than speed.

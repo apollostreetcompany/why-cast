@@ -38,8 +38,8 @@ export class ShowRoom {
     const url = new URL(request.url);
 
     if (request.method === "POST" && url.pathname.endsWith("/initialize")) {
-      const body = (await request.json()) as { showId: string; request: ShowRequest };
-      const show = createShow(body.request, body.showId);
+      const body = (await request.json()) as { showId: string; slug: string; request: ShowRequest };
+      const show = createShow(body.request, body.showId, body.slug);
       const hydrated = hydrateShow(
         show,
         [
@@ -102,16 +102,32 @@ export class ShowRoom {
       }
 
       const body = (await request.json()) as {
+        episodeId: string;
         title: string;
         script: string;
+        status?: Show["episodes"][number]["status"];
+        wordCount?: number;
+        estimatedDurationSec?: number;
+        durationCompliance?: Show["episodes"][number]["durationCompliance"];
+        compelling?: boolean;
+        compellingReason?: string;
       };
       const updatedEpisodes = show.episodes.map((episode) =>
-        episode.episodeNumber === 1
+        episode.id === body.episodeId
           ? {
               ...episode,
               title: body.title,
               script: body.script,
+              status: body.status ?? "ready",
+              audioUrl: null,
+              audioMimeType: undefined,
+              audioSource: undefined,
               scriptSource: "openai" as const,
+              wordCount: body.wordCount,
+              estimatedDurationSec: body.estimatedDurationSec,
+              durationCompliance: body.durationCompliance,
+              compelling: body.compelling,
+              compellingReason: body.compellingReason,
             }
           : episode,
       );
@@ -119,7 +135,13 @@ export class ShowRoom {
         ...show.events,
         createEvent(
           "episode-generated",
-          "Episode 1 was regenerated with the live model path.",
+          `Episode ${show.episodes.find((episode) => episode.id === body.episodeId)?.episodeNumber ?? "?"} was regenerated with the live model path.`,
+        ),
+        createEvent(
+          "episode-validated",
+          body.compelling
+            ? "The validator marked the script as compelling."
+            : "The validator marked the script as not yet compelling.",
         ),
       ]);
       const finalShow = {

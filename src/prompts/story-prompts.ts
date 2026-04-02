@@ -154,6 +154,24 @@ export function buildStoryEditorPrompt(context: StoryPromptContext): string {
   ].join("\n");
 }
 
+export function buildStoryCompellingValidatorPrompt(context: StoryPromptContext): string {
+  return [
+    buildSharedSection(context),
+    "",
+    "### Validator mission",
+    "Decide whether the script is compelling enough for a kid-and-parent audio experience.",
+    "",
+    "### Validator rules",
+    "• Do not rewrite, edit, polish, or suggest line edits.",
+    "• Judge only whether the current script is compelling as written.",
+    "• Consider the hook, clarity, pacing, emotional pull, and how naturally the lesson lives inside the story.",
+    "• If the script is not compelling, say no and briefly explain why.",
+    "",
+    "### Output format",
+    'Return only valid JSON using this exact shape: {"is_compelling":true,"reason":"..."}',
+  ].join("\n");
+}
+
 export function buildContinuityPrompt(context: StoryPromptContext): string {
   return [
     buildSharedSection(context),

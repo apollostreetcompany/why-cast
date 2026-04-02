@@ -1,4 +1,6 @@
 export type StoryMode = "one-off" | "serialized";
+import type { DurationCompliance } from "./lib/script-metrics";
+
 export type EpisodeStatus = "ready" | "queued" | "quiz-locked";
 
 export interface SourcePack {
@@ -36,6 +38,11 @@ export interface Episode {
   audioMimeType?: string;
   audioSource?: "elevenlabs";
   scriptSource?: "template" | "openai";
+  wordCount?: number;
+  estimatedDurationSec?: number;
+  durationCompliance?: DurationCompliance;
+  compelling?: boolean;
+  compellingReason?: string;
 }
 
 export interface UnlockQuiz {
@@ -71,6 +78,7 @@ export interface StoryEvent {
     | "continuity-locked"
     | "episode-queued"
     | "episode-generated"
+    | "episode-validated"
     | "audio-stack-planned"
     | "episode-reviewed";
   detail: string;
@@ -79,6 +87,7 @@ export interface StoryEvent {
 
 export interface Show {
   id: string;
+  slug: string;
   mode: StoryMode;
   ages: number[];
   durationMinutes: number;

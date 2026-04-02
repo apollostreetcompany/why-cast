@@ -1,9 +1,10 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { WorkflowEntrypoint } from "cloudflare:workers";
 import { z } from "zod";
 import { sourcePacks } from "./lib/source-packs";
 import type { Show, ShowRequest } from "./types";
 import { buildAudioStackPlan } from "./lib/audio-stack";
+import { generateShowSlug } from "./lib/show-slugs";
 import { ShowRoom } from "./durable-objects/show-room";
 import { buildWorkflowDemo } from "./services/workflow-demo";
 import { DailyReminderWorkflow, ShowPipelineWorkflow } from "./workflows/show-pipeline";
@@ -32,6 +33,34 @@ function enrichShow(show: Show) {
   };
 }
 
+async function readShowFromRoom(room: DurableObjectStub): Promise<Show | null> {
+  const response = await room.fetch("https://show-room/show");
+  if (response.status === 404) {
+    return null;
+  }
+
+  return (await response.json()) as Show;
+}
+
+async function findAvailableShowRoom(env: Env) {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const slug = generateShowSlug();
+    const roomId = env.SHOW_ROOMS.idFromName(slug);
+    const room = env.SHOW_ROOMS.get(roomId);
+    const existing = await readShowFromRoom(room);
+
+    if (!existing) {
+      return {
+        slug,
+        roomId,
+        room,
+      };
+    }
+  }
+
+  throw new Error("Could not allocate a memorable show URL. Please try again.");
+}
+
 const requestSchema = z.object({
   ages: z.array(z.number().int().min(3).max(14)).min(1),
   durationMinutes: z.union([z.literal(3), z.literal(4), z.literal(5)]),
@@ -41,6 +70,14 @@ const requestSchema = z.object({
   characters: z.string().min(2).max(160),
   narratorPresetId: z.string().optional(),
 });
+
+async function loadShowFromId(env: Env, showId: string) {
+  const roomId = env.SHOW_ROOMS.idFromString(showId);
+  const room = env.SHOW_ROOMS.get(roomId);
+  const show = await readShowFromRoom(room);
+
+  return { room, show };
+}
 
 app.get("/api/health", (c) =>
   c.json({
@@ -81,9 +118,8 @@ app.get("/api/config", (c) =>
 app.post("/api/shows", async (c) => {
   const body = await c.req.json();
   const request = requestSchema.parse(body) as ShowRequest;
-  const roomId = c.env.SHOW_ROOMS.newUniqueId();
+  const { slug, roomId, room } = await findAvailableShowRoom(c.env);
   const showId = roomId.toString();
-  const room = c.env.SHOW_ROOMS.get(roomId);
   const response = await room.fetch("https://show-room/initialize", {
     method: "POST",
     headers: {
@@ -91,6 +127,7 @@ app.post("/api/shows", async (c) => {
     },
     body: JSON.stringify({
       showId,
+      slug,
       request,
     }),
   });
@@ -111,6 +148,18 @@ app.post("/api/shows", async (c) => {
   }
 
   return c.json(enrichShow(show), 201);
+});
+
+app.get("/api/casts/:slug", async (c) => {
+  const roomId = c.env.SHOW_ROOMS.idFromName(c.req.param("slug"));
+  const room = c.env.SHOW_ROOMS.get(roomId);
+  const show = await readShowFromRoom(room);
+
+  if (!show) {
+    return c.json({ error: "Cast not found" }, 404);
+  }
+
+  return c.json(enrichShow(show));
 });
 
 app.get("/api/shows/:showId", async (c) => {
@@ -208,13 +257,25 @@ app.post("/api/shows/:showId/quiz/submit", async (c) => {
   });
 });
 
-app.post("/api/shows/:showId/generate-live", async (c) => {
-  const roomId = c.env.SHOW_ROOMS.idFromString(c.req.param("showId"));
-  const room = c.env.SHOW_ROOMS.get(roomId);
-  const response = await room.fetch("https://show-room/show");
+async function generateLiveForEpisode(c: Context<{ Bindings: Env }>, episodeId: string) {
+  const showId = c.req.param("showId");
+  if (!showId) {
+    return c.json({ error: "Show id is required." }, 400);
+  }
 
-  if (response.status !== 200) {
+  const { room, show } = await loadShowFromId(c.env, showId);
+
+  if (!show) {
     return c.json({ error: "Show not found" }, 404);
+  }
+
+  const episode = show.episodes.find((entry) => entry.id === episodeId);
+  if (!episode) {
+    return c.json({ error: "Episode not found" }, 404);
+  }
+
+  if (episode.status === "quiz-locked") {
+    return c.json({ error: "Pass the quiz before generating this episode." }, 409);
   }
 
   if (!c.env.OPENAI_API_KEY) {
@@ -226,34 +287,75 @@ app.post("/api/shows/:showId/generate-live", async (c) => {
     );
   }
 
-  const show = (await response.json()) as Show;
-  const generated = await generateLiveEpisode(c.env, show);
-  const updateResponse = await room.fetch("https://show-room/episode/live", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      title: generated.episode.title,
-      script: generated.episode.script,
-    }),
-  });
-  const updatedShow = (await updateResponse.json()) as Show;
+  try {
+    const generated = await generateLiveEpisode(c.env, show, episode.id);
+    const updateResponse = await room.fetch("https://show-room/episode/live", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        episodeId: episode.id,
+        title: generated.episode.title,
+        script: generated.episode.script,
+        status: generated.episode.status,
+        wordCount: generated.episode.wordCount,
+        estimatedDurationSec: generated.episode.estimatedDurationSec,
+        durationCompliance: generated.episode.durationCompliance,
+        compelling: generated.episode.compelling,
+        compellingReason: generated.episode.compellingReason,
+      }),
+    });
+    const updatedShow = (await updateResponse.json()) as Show;
 
-  return c.json({
-    show: enrichShow(updatedShow),
-    editor: generated.editor,
-    generationMode: "openai-live",
-  });
-});
+    return c.json({
+      show: enrichShow(updatedShow),
+      validation: generated.validation,
+      attempts: generated.attempts,
+      generationMode: "openai-live",
+    });
+  } catch (error) {
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : "Could not regenerate the live script.",
+      },
+      502,
+    );
+  }
+}
 
-app.post("/api/shows/:showId/render-audio", async (c) => {
-  const roomId = c.env.SHOW_ROOMS.idFromString(c.req.param("showId"));
-  const room = c.env.SHOW_ROOMS.get(roomId);
-  const response = await room.fetch("https://show-room/show");
+async function renderAudioForEpisode(c: Context<{ Bindings: Env }>, episodeId: string) {
+  const showId = c.req.param("showId");
+  if (!showId) {
+    return c.json({ error: "Show id is required." }, 400);
+  }
 
-  if (response.status !== 200) {
+  const { room, show } = await loadShowFromId(c.env, showId);
+
+  if (!show) {
     return c.json({ error: "Show not found" }, 404);
+  }
+
+  const episode = show.episodes.find((entry) => entry.id === episodeId);
+  if (!episode) {
+    return c.json({ error: "Episode not found" }, 404);
+  }
+
+  if (episode.status === "quiz-locked") {
+    return c.json({ error: "Pass the quiz before rendering this episode." }, 409);
+  }
+
+  if (!episode.script?.trim()) {
+    return c.json({ error: "Generate the script before rendering audio." }, 409);
+  }
+
+  if (episode.durationCompliance && episode.durationCompliance !== "pass") {
+    return c.json(
+      {
+        error: "This script is not long enough yet for the requested runtime. Regenerate it before rendering audio.",
+      },
+      409,
+    );
   }
 
   if (!c.env.ELEVENLABS_API_KEY) {
@@ -265,10 +367,8 @@ app.post("/api/shows/:showId/render-audio", async (c) => {
     );
   }
 
-  const show = (await response.json()) as Show;
-  const episode = show.episodes.find((item) => item.episodeNumber === 1) ?? show.episodes[0];
   try {
-    const artifact = await synthesizeEpisodeAudio(c.env, show);
+    const artifact = await synthesizeEpisodeAudio(c.env, show, episode);
     const storeResponse = await room.fetch(`https://show-room/audio/${encodeURIComponent(episode.id)}`, {
       method: "POST",
       headers: {
@@ -295,7 +395,43 @@ app.post("/api/shows/:showId/render-audio", async (c) => {
       502,
     );
   }
+}
+
+app.post("/api/shows/:showId/generate-live", async (c) => {
+  const { show } = await loadShowFromId(c.env, c.req.param("showId"));
+  if (!show) {
+    return c.json({ error: "Show not found" }, 404);
+  }
+
+  const firstEpisodeId = show.episodes[0]?.id;
+  if (!firstEpisodeId) {
+    return c.json({ error: "Show has no episodes yet." }, 409);
+  }
+
+  return generateLiveForEpisode(c, firstEpisodeId);
 });
+
+app.post("/api/shows/:showId/episodes/:episodeId/generate-live", async (c) =>
+  generateLiveForEpisode(c, c.req.param("episodeId")),
+);
+
+app.post("/api/shows/:showId/render-audio", async (c) => {
+  const { show } = await loadShowFromId(c.env, c.req.param("showId"));
+  if (!show) {
+    return c.json({ error: "Show not found" }, 404);
+  }
+
+  const firstEpisodeId = show.episodes[0]?.id;
+  if (!firstEpisodeId) {
+    return c.json({ error: "Show has no episodes yet." }, 409);
+  }
+
+  return renderAudioForEpisode(c, firstEpisodeId);
+});
+
+app.post("/api/shows/:showId/episodes/:episodeId/render-audio", async (c) =>
+  renderAudioForEpisode(c, c.req.param("episodeId")),
+);
 
 app.get("/api/shows/:showId/episodes/:episodeId/audio", async (c) => {
   const roomId = c.env.SHOW_ROOMS.idFromString(c.req.param("showId"));
@@ -319,8 +455,20 @@ app.get("/api/shows/:showId/episodes/:episodeId/audio", async (c) => {
 });
 
 app.notFound((c) => {
-  if (c.env.ASSETS) {
-    return c.env.ASSETS.fetch(c.req.raw);
+  if (c.env.ASSETS && c.req.method === "GET") {
+    const requestUrl = new URL(c.req.url);
+
+    if (requestUrl.pathname.startsWith("/api/")) {
+      return c.json({ error: "Not found" }, 404);
+    }
+
+    return c.env.ASSETS.fetch(c.req.raw).then((response) => {
+      if (response.status !== 404) {
+        return response;
+      }
+
+      return c.env.ASSETS!.fetch(new Request(new URL("/index.html", requestUrl), c.req.raw));
+    });
   }
 
   return c.text("Asset not found", 404);

@@ -3,6 +3,7 @@ export interface NarratorPreset {
   label: string;
   subtitle: string;
   tone: string;
+  wordsPerMinute: number;
   sampleLine: string;
   browserVoiceHints: string[];
   elevenLabsVoiceId: string;
@@ -20,6 +21,7 @@ export const narratorPresets: NarratorPreset[] = [
     label: "Mac: Wonder Guide",
     subtitle: "Warm, curious, cinematic",
     tone: "Bright narration that feels adventurous and emotionally safe.",
+    wordsPerMinute: 126,
     sampleLine:
       "Tonight, we are following a clue so old that even the river remembers it.",
     browserVoiceHints: ["Samantha", "Ava", "Allison"],
@@ -36,6 +38,7 @@ export const narratorPresets: NarratorPreset[] = [
     label: "Mac: Campfire Storyteller",
     subtitle: "Rich, grounded, reassuring",
     tone: "A slower storyteller voice with calm authority and warmth.",
+    wordsPerMinute: 118,
     sampleLine:
       "Come closer, because this is the kind of story that begins with a whisper and grows into a world.",
     browserVoiceHints: ["Daniel", "Alex", "Aaron"],
@@ -52,6 +55,7 @@ export const narratorPresets: NarratorPreset[] = [
     label: "Mac: Playful Spark",
     subtitle: "Light, quick, energetic",
     tone: "Fast, excited delivery for curious younger listeners.",
+    wordsPerMinute: 134,
     sampleLine:
       "Wait, did you hear that? Something important just clicked into place.",
     browserVoiceHints: ["Karen", "Moira", "Siri Female"],
@@ -68,6 +72,7 @@ export const narratorPresets: NarratorPreset[] = [
     label: "Mac: Bedtime Deep Dive",
     subtitle: "Soft, soothing, thoughtful",
     tone: "A bedtime-friendly voice that still makes the lesson feel vivid.",
+    wordsPerMinute: 112,
     sampleLine:
       "Close your eyes for a moment and picture a river carrying an entire civilization forward.",
     browserVoiceHints: ["Fred", "Tom", "Siri Male"],

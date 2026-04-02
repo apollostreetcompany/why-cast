@@ -1,4 +1,4 @@
-import type { Show } from "../types";
+import type { Episode, Show } from "../types";
 import { getNarratorPreset, type NarratorPreset } from "./narrator-voices";
 
 interface ElevenLabsEnv {
@@ -6,7 +6,7 @@ interface ElevenLabsEnv {
   ELEVENLABS_MODEL?: string;
 }
 
-const MAX_EPISODE_TTS_CHARACTERS = 1200;
+const MAX_EPISODE_TTS_CHARACTERS = 5000;
 
 export interface AudioArtifact {
   audioBuffer: ArrayBuffer;
@@ -21,6 +21,7 @@ async function synthesizeText(
   env: ElevenLabsEnv,
   preset: NarratorPreset,
   text: string,
+  outputFormat = "mp3_44100_128",
 ): Promise<AudioArtifact> {
   if (!env.ELEVENLABS_API_KEY) {
     throw new Error("ELEVENLABS_API_KEY is not configured.");
@@ -28,7 +29,7 @@ async function synthesizeText(
 
   const modelId = env.ELEVENLABS_MODEL ?? "eleven_multilingual_v2";
   const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${preset.elevenLabsVoiceId}?output_format=mp3_44100_128`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${preset.elevenLabsVoiceId}?output_format=${outputFormat}`,
     {
       method: "POST",
       headers: {
@@ -71,7 +72,7 @@ function trimEpisodeScriptForAudio(script: string): string {
     candidate.lastIndexOf("? "),
   );
 
-  if (lastSentenceBreak >= 700) {
+  if (lastSentenceBreak >= 1600) {
     return candidate.slice(0, lastSentenceBreak + 1).trim();
   }
 
@@ -83,19 +84,18 @@ export async function synthesizeNarratorSample(
   narratorPresetId: string,
 ): Promise<AudioArtifact> {
   const preset = getNarratorPreset(narratorPresetId);
-  return synthesizeText(env, preset, preset.sampleLine);
+  return synthesizeText(env, preset, preset.sampleLine, "mp3_44100_128");
 }
 
 export async function synthesizeEpisodeAudio(
   env: ElevenLabsEnv,
   show: Show,
+  episode: Episode,
 ): Promise<AudioArtifact> {
-  const episode = show.episodes.find((item) => item.episodeNumber === 1) ?? show.episodes[0];
-
   if (!episode?.script) {
-    throw new Error("Episode 1 script is not available for audio rendering.");
+    throw new Error("Selected episode script is not available for audio rendering.");
   }
 
   const preset = getNarratorPreset(show.narratorPresetId);
-  return synthesizeText(env, preset, trimEpisodeScriptForAudio(episode.script));
+  return synthesizeText(env, preset, trimEpisodeScriptForAudio(episode.script), "mp3_22050_32");
 }
