@@ -267,6 +267,31 @@ function ResultPanel(props: {
                 {props.narratorLabel}
               </span>
             </div>
+            {props.show.unlockQuiz && !props.show.unlockQuiz.passed ? (
+              <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-5">
+                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-700">
+                  Unlock next episode
+                </p>
+                <p className="mt-3 text-sm font-semibold text-stone-800">
+                  {props.show.unlockQuiz.question}
+                </p>
+                <div className="mt-4 grid gap-2">
+                  {props.show.unlockQuiz.options.map((option, index) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => void props.onQuizAnswer(index)}
+                      className="rounded-2xl border border-emerald-200 bg-white/90 px-4 py-3 text-left text-sm font-semibold text-stone-700 transition hover:border-emerald-400"
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+                {props.show.unlockQuiz.lastSelectedOptionIndex !== null ? (
+                  <p className="mt-3 text-sm text-stone-500">{props.show.unlockQuiz.explanation}</p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="rounded-[1.5rem] border border-stone-200 bg-white/75 p-5">
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-stone-500">
                 Saved cast URL
@@ -327,32 +352,6 @@ function ResultPanel(props: {
                 })}
               </div>
             </div>
-
-            {props.show.unlockQuiz && !props.show.unlockQuiz.passed ? (
-              <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-5">
-                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-700">
-                  Unlock episode 2
-                </p>
-                <p className="mt-3 text-sm font-semibold text-stone-800">
-                  {props.show.unlockQuiz.question}
-                </p>
-                <div className="mt-4 grid gap-2">
-                  {props.show.unlockQuiz.options.map((option, index) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => void props.onQuizAnswer(index)}
-                      className="rounded-2xl border border-emerald-200 bg-white/90 px-4 py-3 text-left text-sm font-semibold text-stone-700 transition hover:border-emerald-400"
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-                {props.show.unlockQuiz.lastSelectedOptionIndex !== null ? (
-                  <p className="mt-3 text-sm text-stone-500">{props.show.unlockQuiz.explanation}</p>
-                ) : null}
-              </div>
-            ) : null}
           </aside>
 
           <div className="space-y-5">
@@ -1063,7 +1062,7 @@ export function WhyCastLanding() {
               onClick={() => setIsModalOpen(true)}
               className="rounded-full bg-stone-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-violet-700"
             >
-              Open the creator
+              New series
             </button>
           </div>
 

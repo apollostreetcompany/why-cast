@@ -29,6 +29,7 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 15. Episode generation and audio rendering should be selection-based, not implicitly pinned to Episode 1, so the UI can clearly target the current script and serialized episodes can be worked on in order.
 16. Live generation should enforce spoken-duration budgets and use a non-editing yes/no validator for “compelling” checks; if a draft fails timing or validation, regenerate rather than silently editing it.
 17. Episode audio stored in Durable Object SQLite should use a smaller MP3 output format than narrator samples, because full-length 3-5 minute renders can exceed SQLite blob limits at the previous bitrate.
+18. For the hackathon demo capture, the serialized quiz CTA should stay above the saved-cast card in the sidebar so the “unlock next episode” hook is visible in first-frame screenshots.
 
 ## State
 
@@ -63,9 +64,11 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Hardened live generation with spoken-duration targeting plus a non-editing compelling validator, and blocked audio renders when the selected draft is too short.
 - [x] Lowered stored episode MP3 bitrate so longer renders fit in Durable Object storage again.
 - [x] Bead 010 deployed: production now supports slug lookups, episode-specific generate/render flows, and duration-verified narration.
+- [x] Surfaced the serialized quiz block above the saved-cast URL and renamed the demo CTA button to `New series` for cleaner video capture framing.
+- [x] Bead 011 deployed: the demo sidebar now shows the unlock-next-episode quiz higher in the frame.
 
 ### Now
-- Bead 011: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
+- Bead 012: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
 
 ### Next
 - Add R2-backed audio hosting once longer-lived asset storage matters more than speed.
