@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>why-cast</title>
+    <meta
+      name="description"
+      content="Audio-first educational stories for kids, grounded in trusted sources."
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow">why-cast</p>
+        <h1>Trusted lessons, told like bedtime episodes.</h1>
+        <p class="lede">
+          Pick the child age, episode length, source pack, and story style. why-cast
+          turns vetted learning material into a short show your kid can actually listen to.
+        </p>
+      </section>
+
+      <section class="card">
+        <form id="show-form" class="form">
+          <label>
+            <span>Kid age or ages</span>
+            <input
+              id="ages"
+              name="ages"
+              type="text"
+              value="7"
+              placeholder="Example: 6, 8"
+              required
+            />
+          </label>
+
+          <label>
+            <span>Length requested</span>
+            <select id="durationMinutes" name="durationMinutes">
+              <option value="3">3 minutes</option>
+              <option value="4">4 minutes</option>
+              <option value="5">5 minutes</option>
+            </select>
+          </label>
+
+          <label>
+            <span>One-off or serialized</span>
+            <select id="mode" name="mode">
+              <option value="one-off">One-off</option>
+              <option value="serialized">Serialized</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Vetted sources</span>
+            <select id="sourcePackId" name="sourcePackId"></select>
+          </label>
+
+          <label>
+            <span>Story type and characters</span>
+            <textarea
+              id="storyPrompt"
+              name="storyPrompt"
+              rows="4"
+              placeholder="Space mystery with Ada the fox and Jun the robot"
+              required
+            >Adventure story with Ada the fox and Jun the robot</textarea>
+          </label>
+
+          <button type="submit" class="primary">Generate show</button>
+        </form>
+      </section>
+
+      <section id="result" class="result hidden" aria-live="polite"></section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
