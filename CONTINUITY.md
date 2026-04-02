@@ -32,6 +32,8 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Deployed the scaffold to Cloudflare Workers and verified `/api/health` plus `POST /api/shows` against production.
 - [x] Upgraded show state ownership from in-memory storage to a Durable Object-backed show room model.
 - [x] Added judge-facing Cloudflare and multi-API ElevenLabs architecture cues to the live product response and UI.
+- [x] Added repo-ready writer, editor, and continuity prompt templates that preserve the requested structure while improving control over quality.
+- [x] Added a full workflow demo artifact: prompt bundle, generated draft, editor pass, continuity memory, and step-by-step Cloudflare/ElevenLabs pipeline output.
 
 ### Now
 - Bead 003: wire real generation and audio delivery behind the Durable Object continuity layer.
@@ -59,6 +61,8 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - `/Users/borker/dev/why-cast/src/index.ts`
 - `/Users/borker/dev/why-cast/src/durable-objects/show-room.ts`
 - `/Users/borker/dev/why-cast/src/lib/audio-stack.ts`
+- `/Users/borker/dev/why-cast/src/prompts/story-prompts.ts`
+- `/Users/borker/dev/why-cast/src/services/workflow-demo.ts`
 - `/Users/borker/dev/why-cast/src/services/story-generator.ts`
 - `/Users/borker/dev/why-cast/public/index.html`
 - `/Users/borker/Downloads/EXECUTION-PLAN.md`

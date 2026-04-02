@@ -29,6 +29,7 @@
   - `GET /api/health` returned `ok: true` plus judge-facing architecture metadata on 2026-04-02 UTC
   - `POST /api/shows` returned a Durable Object-backed serialized show with one ready episode, three queued episodes, continuity events, and a multi-API ElevenLabs audio plan on 2026-04-02 UTC
   - `GET /api/shows/:showId` retrieved the same show state from the Durable Object on 2026-04-02 UTC
+  - `GET /api/shows/:showId/workflow-demo` returned the prompt bundle, generated draft, editor pass, continuity memory, and workflow stage artifacts on 2026-04-02 UTC
 
 ## Rollback Path
 - Re-deploy the previous Worker version from Cloudflare dashboard or Wrangler deployment history.

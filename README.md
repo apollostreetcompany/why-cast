@@ -10,6 +10,7 @@ Audio-first educational storytelling for kids, built for a fast Cloudflare + Ele
 - Static frontend + Hono API on Cloudflare Workers
 - Durable Object-backed show room state for serialized continuity
 - Judge-facing plan for ElevenLabs Text to Speech, Sound Effects, and Speech to Text
+- Prompt bundle, editor pass, continuity memory, and workflow demo artifacts via API
 
 ## Quick Start
 1. `make install`
@@ -19,6 +20,12 @@ Audio-first educational storytelling for kids, built for a fast Cloudflare + Ele
 ## Validation
 - `make typecheck`
 - `make test`
+
+## Demo API
+- `GET /api/health`
+- `POST /api/shows`
+- `GET /api/shows/:showId`
+- `GET /api/shows/:showId/workflow-demo`
 
 ## Current Limits
 - Real D1, R2, Workflows, and ElevenLabs integrations are scaffold targets, not fully wired yet.

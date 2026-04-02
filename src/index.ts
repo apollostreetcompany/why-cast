@@ -4,6 +4,7 @@ import { sourcePacks } from "./lib/source-packs";
 import type { Show, ShowRequest } from "./types";
 import { buildAudioStackPlan } from "./lib/audio-stack";
 import { ShowRoom } from "./durable-objects/show-room";
+import { buildWorkflowDemo } from "./services/workflow-demo";
 
 interface Env {
   ASSETS?: Fetcher;
@@ -11,6 +12,14 @@ interface Env {
 }
 
 const app = new Hono<{ Bindings: Env }>();
+
+function enrichShow(show: Show) {
+  return {
+    ...show,
+    audioStack: buildAudioStackPlan(show),
+    workflowDemo: buildWorkflowDemo(show),
+  };
+}
 
 const requestSchema = z.object({
   ages: z.array(z.number().int().min(3).max(14)).min(1),
@@ -66,13 +75,7 @@ app.post("/api/shows", async (c) => {
   });
   const show = (await response.json()) as Show;
 
-  return c.json(
-    {
-      ...show,
-      audioStack: buildAudioStackPlan(show),
-    },
-    201,
-  );
+  return c.json(enrichShow(show), 201);
 });
 
 app.get("/api/shows/:showId", async (c) => {
@@ -84,12 +87,21 @@ app.get("/api/shows/:showId", async (c) => {
     return c.json({ error: "Show not found" }, 404);
   }
 
-  const show = await response.json();
-  const typedShow = show as Show;
-  return c.json({
-    ...typedShow,
-    audioStack: buildAudioStackPlan(typedShow),
-  });
+  const show = (await response.json()) as Show;
+  return c.json(enrichShow(show));
+});
+
+app.get("/api/shows/:showId/workflow-demo", async (c) => {
+  const roomId = c.env.SHOW_ROOMS.idFromString(c.req.param("showId"));
+  const room = c.env.SHOW_ROOMS.get(roomId);
+  const response = await room.fetch("https://show-room/show");
+
+  if (response.status === 404) {
+    return c.json({ error: "Show not found" }, 404);
+  }
+
+  const show = (await response.json()) as Show;
+  return c.json(buildWorkflowDemo(show));
 });
 
 app.notFound((c) => {

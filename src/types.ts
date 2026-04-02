@@ -62,3 +62,15 @@ export interface Show {
   };
   events: StoryEvent[];
 }
+
+export interface EnrichedShowResponse extends Show {
+  audioStack: {
+    headline: string;
+    steps: Array<{
+      name: string;
+      provider: string;
+      purpose: string;
+    }>;
+  };
+  workflowDemo: import("./services/workflow-demo").WorkflowDemo;
+}
