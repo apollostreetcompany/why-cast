@@ -55,6 +55,43 @@ describe("elevenlabs audio service", () => {
     expect(artifact.voiceId).toBe("ErXwobaYiN019PkySvjV");
   });
 
+  it("trims oversized live scripts before sending them to ElevenLabs", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new Uint8Array([1, 2, 3, 4]).buffer, {
+        status: 200,
+        headers: {
+          "Content-Type": "audio/mpeg",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const show = createShow({
+      ages: [7],
+      durationMinutes: 3,
+      mode: "serialized",
+      sourcePackId: "khan-hist-ancient-egypt",
+      storyType: "Adventure",
+      characters: "Luna and Mac",
+      narratorPresetId: "mac-campfire",
+    });
+    show.episodes[0] = {
+      ...show.episodes[0],
+      script: `${"Ancient Egypt is full of clues. ".repeat(120)}Final sentence.`,
+    };
+
+    await synthesizeEpisodeAudio(
+      {
+        ELEVENLABS_API_KEY: "test-key",
+      },
+      show,
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(String(init.body));
+    expect(payload.text.length).toBeLessThanOrEqual(1200);
+  });
+
   it("renders narrator samples with the preset sample line", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(new Uint8Array([9, 8, 7]).buffer, {

@@ -160,13 +160,22 @@ app.get("/api/narrators/:narratorPresetId/sample", async (c) => {
     );
   }
 
-  const artifact = await synthesizeNarratorSample(c.env, c.req.param("narratorPresetId"));
-  return new Response(artifact.audioBuffer, {
-    headers: {
-      "Content-Type": artifact.mimeType,
-      "Cache-Control": "public, max-age=3600",
-    },
-  });
+  try {
+    const artifact = await synthesizeNarratorSample(c.env, c.req.param("narratorPresetId"));
+    return new Response(artifact.audioBuffer, {
+      headers: {
+        "Content-Type": artifact.mimeType,
+        "Cache-Control": "public, max-age=3600",
+      },
+    });
+  } catch (error) {
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : "Could not render narrator sample.",
+      },
+      502,
+    );
+  }
 });
 
 app.post("/api/shows/:showId/quiz/submit", async (c) => {
@@ -258,25 +267,34 @@ app.post("/api/shows/:showId/render-audio", async (c) => {
 
   const show = (await response.json()) as Show;
   const episode = show.episodes.find((item) => item.episodeNumber === 1) ?? show.episodes[0];
-  const artifact = await synthesizeEpisodeAudio(c.env, show);
-  const storeResponse = await room.fetch(`https://show-room/audio/${encodeURIComponent(episode.id)}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": artifact.mimeType,
-    },
-    body: artifact.audioBuffer,
-  });
-  const updatedShow = (await storeResponse.json()) as Show;
+  try {
+    const artifact = await synthesizeEpisodeAudio(c.env, show);
+    const storeResponse = await room.fetch(`https://show-room/audio/${encodeURIComponent(episode.id)}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": artifact.mimeType,
+      },
+      body: artifact.audioBuffer,
+    });
+    const updatedShow = (await storeResponse.json()) as Show;
 
-  return c.json({
-    show: enrichShow(updatedShow),
-    audio: {
-      source: "elevenlabs",
-      voiceId: artifact.voiceId,
-      modelId: artifact.modelId,
-      mimeType: artifact.mimeType,
-    },
-  });
+    return c.json({
+      show: enrichShow(updatedShow),
+      audio: {
+        source: "elevenlabs",
+        voiceId: artifact.voiceId,
+        modelId: artifact.modelId,
+        mimeType: artifact.mimeType,
+      },
+    });
+  } catch (error) {
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : "Could not render episode audio.",
+      },
+      502,
+    );
+  }
 });
 
 app.get("/api/shows/:showId/episodes/:episodeId/audio", async (c) => {

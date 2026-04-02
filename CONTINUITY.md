@@ -22,6 +22,8 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 8. Use browser speech synthesis as the temporary audio-preview fallback until real ElevenLabs audio generation is wired.
 9. Store the first rendered audio artifact in Durable Object storage for the hackathon slice, then move audio persistence to R2 when longer-lived hosting becomes a priority.
 10. Expose real ElevenLabs narrator sampling and episode rendering directly through Worker routes so judges can hear the Cloudflare plus ElevenLabs story without leaving the site.
+11. Ship the polished landing page as a React + Vite frontend served by the same Worker, while preserving the existing API and demo routes.
+12. Trim live-generated scripts before TTS so the hackathon-era Durable Object audio storage path stays reliable until R2 takes over.
 
 ## State
 
@@ -45,13 +47,17 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Added a real ElevenLabs-backed narrator sample route and Episode 1 render-audio route.
 - [x] Added Durable Object-backed storage and playback for rendered episode audio artifacts.
 - [x] Bead 006 committed and deployed: real server-side narration is available in production.
+- [x] Replaced the minimal static page with a polished React + Vite landing page served from the existing Worker.
+- [x] Kept the full live demo path working from the landing page: create show, regenerate script, render audio, and stream playback.
+- [x] Bead 007 committed and deployed: the production landing page is now demo-ready.
 
 ### Now
-- Bead 007: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
+- Bead 008: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
 
 ### Next
 - Add R2-backed audio hosting once longer-lived asset storage matters more than speed.
 - Pre-generate showcase stories and capture demo video assets.
+- Add the viral promo video assets and embed the final demo cut on the landing page.
 
 ## Open Questions
 - UNCONFIRMED: which LLM provider should be primary for generation during the hackathon.
@@ -74,7 +80,9 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - `/Users/borker/dev/why-cast/src/prompts/story-prompts.ts`
 - `/Users/borker/dev/why-cast/src/services/workflow-demo.ts`
 - `/Users/borker/dev/why-cast/src/services/story-generator.ts`
-- `/Users/borker/dev/why-cast/public/index.html`
+- `/Users/borker/dev/why-cast/src/client/WhyCastLanding.tsx`
+- `/Users/borker/dev/why-cast/src/client/main.tsx`
+- `/Users/borker/dev/why-cast/index.html`
 - `/Users/borker/Downloads/EXECUTION-PLAN.md`
-- Commands: `wrangler dev`, `wrangler deploy`, `npm test`, `make dev`, `npx wrangler deploy --dry-run`
+- Commands: `npm run build`, `wrangler dev`, `wrangler deploy`, `npm test`, `make dev`, `npx wrangler deploy --dry-run`
 - Live URL: `https://why-cast.ryan-borker.workers.dev`

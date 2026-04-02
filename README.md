@@ -3,6 +3,7 @@
 Audio-first educational storytelling for kids, built for a fast Cloudflare + ElevenLabs hackathon sprint.
 
 ## Current MVP
+- Polished React + Vite landing page served by the same Cloudflare Worker
 - Five-input onboarding flow
 - Curated Khan Academy source packs
 - One-off and serialized show modes
@@ -18,11 +19,12 @@ Audio-first educational storytelling for kids, built for a fast Cloudflare + Ele
 ## Quick Start
 1. `make install`
 2. `make dev`
-3. Open the local Wrangler URL
+3. Open the local Wrangler URL after the initial Vite build completes
 
 ## Validation
 - `make typecheck`
 - `make test`
+- `npm run build`
 
 ## Demo API
 - `GET /api/health`
@@ -40,3 +42,4 @@ Audio-first educational storytelling for kids, built for a fast Cloudflare + Ele
 - D1 and R2 are still the next storage layer to wire for production persistence and hosted audio files.
 - Audio artifacts currently live in Durable Object storage, which is good enough for the hackathon slice but not the long-term hosting layer.
 - Episode 2+ generation is still gated/planned, not fully automated with live model plus audio rendering yet.
+- The current React landing page uses Tailwind via CDN for speed; we can harden that into a bundled styling pipeline after the hackathon sprint if needed.

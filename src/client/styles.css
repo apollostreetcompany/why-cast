@@ -1,0 +1,36 @@
+html {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(255, 196, 136, 0.36), transparent 28%),
+    radial-gradient(circle at top right, rgba(124, 58, 237, 0.16), transparent 26%),
+    linear-gradient(180deg, #fbf2e7 0%, #f5efe6 100%);
+  color: #2b1d14;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.paper-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.08;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.8) 0, transparent 16%),
+    radial-gradient(circle at 70% 10%, rgba(255, 255, 255, 0.6) 0, transparent 12%),
+    radial-gradient(circle at 50% 70%, rgba(98, 54, 26, 0.18) 0, transparent 10%);
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+}

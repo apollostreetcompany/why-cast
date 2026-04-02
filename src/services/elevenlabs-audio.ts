@@ -6,6 +6,8 @@ interface ElevenLabsEnv {
   ELEVENLABS_MODEL?: string;
 }
 
+const MAX_EPISODE_TTS_CHARACTERS = 1200;
+
 export interface AudioArtifact {
   audioBuffer: ArrayBuffer;
   mimeType: string;
@@ -56,6 +58,26 @@ async function synthesizeText(
   };
 }
 
+function trimEpisodeScriptForAudio(script: string): string {
+  const compact = script.replace(/\s+/g, " ").trim();
+  if (compact.length <= MAX_EPISODE_TTS_CHARACTERS) {
+    return compact;
+  }
+
+  const candidate = compact.slice(0, MAX_EPISODE_TTS_CHARACTERS);
+  const lastSentenceBreak = Math.max(
+    candidate.lastIndexOf(". "),
+    candidate.lastIndexOf("! "),
+    candidate.lastIndexOf("? "),
+  );
+
+  if (lastSentenceBreak >= 700) {
+    return candidate.slice(0, lastSentenceBreak + 1).trim();
+  }
+
+  return `${candidate.slice(0, MAX_EPISODE_TTS_CHARACTERS - 3).trim()}...`;
+}
+
 export async function synthesizeNarratorSample(
   env: ElevenLabsEnv,
   narratorPresetId: string,
@@ -75,5 +97,5 @@ export async function synthesizeEpisodeAudio(
   }
 
   const preset = getNarratorPreset(show.narratorPresetId);
-  return synthesizeText(env, preset, episode.script);
+  return synthesizeText(env, preset, trimEpisodeScriptForAudio(episode.script));
 }

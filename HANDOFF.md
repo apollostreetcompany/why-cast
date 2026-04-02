@@ -5,6 +5,7 @@
 - GitHub remote exists at `apollostreetcompany/why-cast`.
 - Active branch: `codex/feat/bead-001-foundation`.
 - Real OpenAI-backed script generation and real ElevenLabs-backed Episode 1 narration are deployed.
+- The production landing page is now a polished React + Vite frontend served by the same Worker.
 
 ## Product Direction
 - why-cast is an audio-first educational storytelling app for kids and parents.
@@ -28,3 +29,4 @@
 - Favor a crisp demo with 1-2 excellent episode examples over broad feature surface.
 - Video should be built around 5-second scenes with a mix of screen capture and AI-generated cutaways.
 - Judges can now hear narrator samples and rendered show audio directly from the site.
+- The current live demo path from the landing page is: open modal -> create serialized Ancient Egypt show -> generate live script -> render studio audio.
