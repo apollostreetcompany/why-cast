@@ -30,6 +30,7 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 16. Live generation should enforce spoken-duration budgets and use a non-editing yes/no validator for “compelling” checks; if a draft fails timing or validation, regenerate rather than silently editing it.
 17. Episode audio stored in Durable Object SQLite should use a smaller MP3 output format than narrator samples, because full-length 3-5 minute renders can exceed SQLite blob limits at the previous bitrate.
 18. For the hackathon demo capture, the serialized quiz CTA should stay above the saved-cast card in the sidebar so the “unlock next episode” hook is visible in first-frame screenshots.
+19. Use Cloudflare Pages as the clean public hostname while keeping the existing Worker as the backend and asset-serving source of truth, because a full Pages migration would complicate Durable Objects and Workflows during the hackathon.
 
 ## State
 
@@ -66,9 +67,13 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Bead 010 deployed: production now supports slug lookups, episode-specific generate/render flows, and duration-verified narration.
 - [x] Surfaced the serialized quiz block above the saved-cast URL and renamed the demo CTA button to `New series` for cleaner video capture framing.
 - [x] Bead 011 deployed: the demo sidebar now shows the unlock-next-episode quiz higher in the frame.
+- [x] Added a separate Pages-hosted frontend alias at `https://why-cast.pages.dev` while keeping the Worker as the API/backend runtime.
+- [x] Added cross-origin-safe frontend API routing plus Worker CORS so the Pages frontend can create shows, regenerate scripts, and render audio against the live Worker backend.
+- [x] Added `make deploy-pages` and documented the Pages-specific build artifact flow needed for SPA redirects without breaking the Worker asset deploy.
+- [x] Bead 012 deployed: the clean Pages URL is live and the saved-cast SPA routes resolve there correctly.
 
 ### Now
-- Bead 012: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
+- Bead 013: wire D1 persistence and async episode status updates under the existing Durable Object and Workflow layer.
 
 ### Next
 - Add R2-backed audio hosting once longer-lived asset storage matters more than speed.

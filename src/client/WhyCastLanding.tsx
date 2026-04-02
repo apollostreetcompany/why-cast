@@ -93,6 +93,10 @@ interface FormState {
   narratorPresetId: string;
 }
 
+const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)
+  ?.trim()
+  .replace(/\/$/, "");
+
 const whyQuestions = [
   "Why is the sky blue?",
   "Why do cats purr?",
@@ -192,6 +196,38 @@ function getDurationStatusCopy(episode: Episode) {
   }
 
   return `running long at ${formatDurationLabel(episode.estimatedDurationSec)}`;
+}
+
+function toApiUrl(path: string) {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  if (!configuredApiBaseUrl) {
+    return path;
+  }
+
+  return new URL(path, `${configuredApiBaseUrl}/`).toString();
+}
+
+function normalizeConfigResponse<T extends ConfigResponse>(config: T): T {
+  return {
+    ...config,
+    narratorPresets: config.narratorPresets.map((preset) => ({
+      ...preset,
+      sampleUrl: preset.sampleUrl ? toApiUrl(preset.sampleUrl) : undefined,
+    })),
+  } as T;
+}
+
+function normalizeShowResponse<T extends ShowResponse>(show: T): T {
+  return {
+    ...show,
+    episodes: show.episodes.map((episode) => ({
+      ...episode,
+      audioUrl: episode.audioUrl ? toApiUrl(episode.audioUrl) : null,
+    })),
+  } as T;
 }
 
 function SelectField(props: {
@@ -744,8 +780,8 @@ export function WhyCastLanding() {
 
   useEffect(() => {
     async function loadConfig() {
-      const response = await fetch("/api/config");
-      const data = (await response.json()) as ConfigResponse;
+      const response = await fetch(toApiUrl("/api/config"));
+      const data = normalizeConfigResponse((await response.json()) as ConfigResponse);
       setConfig(data);
       setForm((current) => ({
         ...current,
@@ -783,8 +819,8 @@ export function WhyCastLanding() {
     }
 
     async function loadSavedCast(slug: string) {
-      const response = await fetch(`/api/casts/${slug}`);
-      const data = (await response.json()) as ShowResponse & { error?: string };
+      const response = await fetch(toApiUrl(`/api/casts/${slug}`));
+      const data = normalizeShowResponse((await response.json()) as ShowResponse & { error?: string });
       if (!response.ok) {
         throw new Error(data.error ?? "Could not load the saved cast.");
       }
@@ -840,7 +876,7 @@ export function WhyCastLanding() {
     setError(null);
 
     try {
-      const response = await fetch("/api/shows", {
+      const response = await fetch(toApiUrl("/api/shows"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -856,7 +892,7 @@ export function WhyCastLanding() {
         }),
       });
 
-      const data = (await response.json()) as ShowResponse & { error?: string };
+      const data = normalizeShowResponse((await response.json()) as ShowResponse & { error?: string });
       if (!response.ok) {
         throw new Error(data.error ?? "Could not generate the show.");
       }
@@ -880,14 +916,14 @@ export function WhyCastLanding() {
       return;
     }
 
-    const response = await fetch(path, {
+    const response = await fetch(toApiUrl(path), {
       method: "POST",
     });
     const data = (await response.json()) as { error?: string; show: ShowResponse };
     if (!response.ok) {
       throw new Error(data.error ?? "Request failed.");
     }
-    setShow(data.show);
+    setShow(normalizeShowResponse(data.show));
   }
 
   async function handleGenerateLive(episodeId: string) {
@@ -927,7 +963,7 @@ export function WhyCastLanding() {
       return;
     }
 
-    const response = await fetch(`/api/shows/${show.id}/quiz/submit`, {
+    const response = await fetch(toApiUrl(`/api/shows/${show.id}/quiz/submit`), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -941,7 +977,7 @@ export function WhyCastLanding() {
       return;
     }
 
-    setShow(data.show);
+    setShow(normalizeShowResponse(data.show));
   }
 
   return (

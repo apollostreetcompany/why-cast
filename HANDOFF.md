@@ -2,10 +2,11 @@
 
 ## Current Status
 - Cloudflare Worker MVP is live at `https://why-cast.ryan-borker.workers.dev`.
+- Cloudflare Pages frontend alias is live at `https://why-cast.pages.dev`.
 - GitHub remote exists at `apollostreetcompany/why-cast`.
 - Active branch: `codex/feat/bead-001-foundation`.
 - Real OpenAI-backed script generation and real ElevenLabs-backed Episode 1 narration are deployed.
-- The production landing page is now a polished React + Vite frontend served by the same Worker.
+- The production landing page is now available both from the Worker and from a cleaner Pages URL that points at the same backend.
 - Saved casts now use four-word public URLs, and the live demo supports episode-specific script generation and audio rendering.
 
 ## Product Direction
@@ -30,4 +31,5 @@
 - Favor a crisp demo with 1-2 excellent episode examples over broad feature surface.
 - Video should be built around 5-second scenes with a mix of screen capture and AI-generated cutaways.
 - Judges can now hear narrator samples and rendered show audio directly from the site.
+- The clean share link for the product is now `https://why-cast.pages.dev`.
 - The current live demo path from the landing page is: open modal -> create show -> select episode -> generate live script -> render studio audio -> reopen later via four-word cast URL.

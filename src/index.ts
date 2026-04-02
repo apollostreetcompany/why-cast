@@ -1,4 +1,5 @@
 import { Hono, type Context } from "hono";
+import { cors } from "hono/cors";
 import { WorkflowEntrypoint } from "cloudflare:workers";
 import { z } from "zod";
 import { sourcePacks } from "./lib/source-packs";
@@ -24,6 +25,8 @@ interface Env {
 }
 
 const app = new Hono<{ Bindings: Env }>();
+
+app.use("/api/*", cors({ origin: "*" }));
 
 function enrichShow(show: Show) {
   return {
