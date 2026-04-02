@@ -1,6 +1,6 @@
 # why-cast
 
-Audio-first educational storytelling for kids, built for a fast Cloudflare + ElevenLabs hackathon sprint.
+Audio-first educational storytelling for kids, built on Cloudflare Workers and ElevenLabs.
 
 ## Current MVP
 - Polished React + Vite landing page served by the same Cloudflare Worker
@@ -10,7 +10,7 @@ Audio-first educational storytelling for kids, built for a fast Cloudflare + Ele
 - Deterministic first-episode generation
 - Static frontend + Hono API on Cloudflare Workers
 - Durable Object-backed show room state for serialized continuity
-- Judge-facing plan for ElevenLabs Text to Speech, Sound Effects, and Speech to Text
+- ElevenLabs Text to Speech integration for narrator samples and episode audio
 - Real ElevenLabs narrator samples and Episode 1 audio rendering
 - Prompt bundle, editor pass, continuity memory, and workflow demo artifacts via API
 - Quiz-gated episode unlock loop for families
@@ -40,6 +40,6 @@ Audio-first educational storytelling for kids, built for a fast Cloudflare + Ele
 
 ## Current Limits
 - D1 and R2 are still the next storage layer to wire for production persistence and hosted audio files.
-- Audio artifacts currently live in Durable Object storage, which is good enough for the hackathon slice but not the long-term hosting layer.
+- Audio artifacts currently live in Durable Object storage, which is fine for the current MVP but not the long-term hosting layer.
 - Episode 2+ generation is still gated/planned, not fully automated with live model plus audio rendering yet.
-- The current React landing page uses Tailwind via CDN for speed; we can harden that into a bundled styling pipeline after the hackathon sprint if needed.
+- The current React landing page uses Tailwind via CDN for speed; we can harden that into a bundled styling pipeline if needed.
