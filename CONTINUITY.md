@@ -34,9 +34,10 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Added judge-facing Cloudflare and multi-API ElevenLabs architecture cues to the live product response and UI.
 - [x] Added repo-ready writer, editor, and continuity prompt templates that preserve the requested structure while improving control over quality.
 - [x] Added a full workflow demo artifact: prompt bundle, generated draft, editor pass, continuity memory, and step-by-step Cloudflare/ElevenLabs pipeline output.
+- [x] Bead 003 committed and deployed: prompt-driven workflow demo artifacts are now exposed by the live API.
 
 ### Now
-- Bead 003: wire real generation and audio delivery behind the Durable Object continuity layer.
+- Bead 004: wire one real generation path and one real ElevenLabs-backed audio path behind the workflow demo.
 
 ### Next
 - Add a mock or real async workflow path for episode generation status updates.
