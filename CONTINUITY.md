@@ -27,6 +27,7 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Created canonical project memory files and the adapted why-cast hackathon plan.
 - [x] Scaffolded a Cloudflare Worker MVP with static assets, API routes, curated source packs, tests, and a successful Wrangler dry run.
 - [x] Bead 001 committed: foundation docs, Worker scaffold, frontend MVP, and story-generation test coverage.
+- [x] Deployed the scaffold to Cloudflare Workers and verified `/api/health` plus `POST /api/shows` against production.
 
 ### Now
 - Bead 002: wire D1-backed show persistence and replace the in-memory demo store.
@@ -38,7 +39,7 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 
 ## Open Questions
 - UNCONFIRMED: which LLM provider should be primary for generation during the hackathon.
-- UNCONFIRMED: whether episode delivery to phone should be via web playback only, SMS/email link, or a lightweight push-like follow-up.
+- Current MVP answer: episode delivery is mobile web playback first, with download/script fallback until real audio generation is wired.
 - UNCONFIRMED: whether source ingestion will use direct curated transcripts only or a search/scrape layer in the MVP.
 
 ## Working Set
@@ -55,3 +56,4 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - `/Users/borker/dev/why-cast/public/index.html`
 - `/Users/borker/Downloads/EXECUTION-PLAN.md`
 - Commands: `wrangler dev`, `wrangler deploy`, `npm test`, `make dev`, `npx wrangler deploy --dry-run`
+- Live URL: `https://why-cast.ryan-borker.workers.dev`

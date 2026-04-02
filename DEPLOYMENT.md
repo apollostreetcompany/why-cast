@@ -22,6 +22,11 @@
 ## Health and Smoke Checks
 - Health endpoint: `GET /api/health`
 - Smoke path: create show request -> create episode job -> retrieve episode list -> play demo audio URL
+- Last verified deploy: `https://why-cast.ryan-borker.workers.dev`
+- Last verified version: `1c65f822-c458-4333-b1d9-c94e14ac51f8`
+- Last smoke results:
+  - `GET /api/health` returned `ok: true` on 2026-04-02 UTC
+  - `POST /api/shows` returned a serialized show with one ready episode and three queued episodes on 2026-04-02 UTC
 
 ## Rollback Path
 - Re-deploy the previous Worker version from Cloudflare dashboard or Wrangler deployment history.
