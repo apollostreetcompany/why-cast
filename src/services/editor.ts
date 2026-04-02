@@ -44,13 +44,14 @@ export function buildQueuedEpisodePreview(
   request: ShowRequest,
   sourcePack: SourcePack,
   episodeNumber: number,
+  status: "queued" | "quiz-locked" = "queued",
 ): Episode {
   return {
     id: `ep-${episodeNumber}`,
     episodeNumber,
     title: buildEpisodeTitle(sourcePack, request, episodeNumber),
     subject: sourcePack.subject,
-    status: "queued",
+    status,
     durationTargetSec: request.durationMinutes * 60,
     learningGoal: buildLearningGoal(sourcePack, request.ages),
     continuitySummary: buildContinuitySummary(request, sourcePack, episodeNumber),

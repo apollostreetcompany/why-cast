@@ -46,6 +46,27 @@ export interface WorkflowDemo {
     characterState: string;
     nextEpisodeSetup: string;
   };
+  quizGate: {
+    question: string;
+    options: string[];
+    explanation: string;
+    unlocksEpisodeNumber: number;
+    passed: boolean;
+  } | null;
+  reminderPreview: {
+    subject: string;
+    preview: string;
+    gate: string;
+  } | null;
+  aiProduction: {
+    voiceCasting: {
+      voiceRole: string;
+      tone: string;
+      pacing: string;
+    };
+    soundDesign: string[];
+    qaChecklist: string[];
+  };
   workflowSteps: WorkflowStepDemo[];
 }
 
@@ -139,6 +160,49 @@ function buildContinuityMemory(show: Show, draft: WorkflowDemo["generatedDraft"]
   };
 }
 
+function buildAiProduction(show: Show): WorkflowDemo["aiProduction"] {
+  const tone =
+    show.sourcePack.subject === "history"
+      ? "wonder-filled and cinematic"
+      : show.sourcePack.subject === "science"
+        ? "curious, bright, and lightly magical"
+        : "playful, precise, and rhythmic";
+
+  const soundDesign =
+    show.sourcePack.subject === "history"
+      ? [
+          "Soft river ambience under the opening scene",
+          "Gentle discovery chime when the core lesson clicks",
+          "Warm closing swell before the recap question",
+        ]
+      : show.sourcePack.subject === "science"
+        ? [
+            "Light greenhouse shimmer for discovery moments",
+            "Tiny bloom-like sound cue on the lesson reveal",
+            "Soft curious outro pulse for the next-episode hook",
+          ]
+        : [
+            "Playful puzzle ticks during the central challenge",
+            "Clean success tone when the math idea lands",
+            "Short upbeat outro cue before the recap question",
+          ];
+
+  return {
+    voiceCasting: {
+      voiceRole: "Mac, trusted tutor-storyteller",
+      tone,
+      pacing: `Aim for a natural ${show.durationMinutes}-minute spoken rhythm with short pauses after each key reveal.`,
+    },
+    soundDesign,
+    qaChecklist: [
+      "Transcribe final audio and compare against the approved edited script.",
+      "Confirm the recap sentence is present and understandable.",
+      "Check that no unsupported facts or off-script lines were introduced in narration.",
+      "Verify the next-episode hook is audible and emotionally clear.",
+    ],
+  };
+}
+
 export function buildWorkflowDemo(show: Show): WorkflowDemo {
   const childProfiles = buildChildProfiles(show);
   const context = {
@@ -166,6 +230,23 @@ export function buildWorkflowDemo(show: Show): WorkflowDemo {
     generatedDraft,
     editorPass,
     continuityMemory,
+    quizGate: show.unlockQuiz
+      ? {
+          question: show.unlockQuiz.question,
+          options: show.unlockQuiz.options,
+          explanation: show.unlockQuiz.explanation,
+          unlocksEpisodeNumber: show.unlockQuiz.unlocksEpisodeNumber,
+          passed: show.unlockQuiz.passed,
+        }
+      : null,
+    reminderPreview: show.notificationPlan
+      ? {
+          subject: show.notificationPlan.subject,
+          preview: show.notificationPlan.preview,
+          gate: show.notificationPlan.gate,
+        }
+      : null,
+    aiProduction: buildAiProduction(show),
     workflowSteps: [
       {
         stage: "request-accepted",
@@ -193,6 +274,11 @@ export function buildWorkflowDemo(show: Show): WorkflowDemo {
         detail: "A second pass tightens pacing, checks factual integrity, and sharpens the emotional arc.",
       },
       {
+        stage: "editor",
+        label: "Family quiz gate prepared",
+        detail: "A short parent-and-kid quiz unlocks the next episode and prevents spammy autobot generation.",
+      },
+      {
         stage: "audio-render",
         label: "ElevenLabs builds the audio stack",
         detail: "Narration and scene texture are rendered as separate steps so the final episode sounds alive.",
@@ -205,7 +291,7 @@ export function buildWorkflowDemo(show: Show): WorkflowDemo {
       {
         stage: "delivery",
         label: "Episode delivered and next beat queued",
-        detail: "The first episode is ready for phone playback while the next episode setup is stored for serialized follow-up.",
+        detail: "The first episode is ready for phone playback while a daily reminder workflow can nudge the family until the quiz gate is passed.",
       },
     ],
   };

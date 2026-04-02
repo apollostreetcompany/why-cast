@@ -1,4 +1,5 @@
 export type StoryMode = "one-off" | "serialized";
+export type EpisodeStatus = "ready" | "queued" | "quiz-locked";
 
 export interface SourcePack {
   id: string;
@@ -24,13 +25,39 @@ export interface Episode {
   episodeNumber: number;
   title: string;
   subject: SourcePack["subject"];
-  status: "ready" | "queued";
+  status: EpisodeStatus;
   durationTargetSec: number;
   learningGoal: string;
   continuitySummary: string;
   script: string;
   citationLabel: string;
   audioUrl: string | null;
+}
+
+export interface UnlockQuiz {
+  question: string;
+  options: string[];
+  correctOptionIndex: number;
+  explanation: string;
+  unlocksEpisodeNumber: number;
+  attemptCount: number;
+  passed: boolean;
+  lastSelectedOptionIndex: number | null;
+}
+
+export interface NotificationPlan {
+  channel: "daily-email";
+  cadence: string;
+  subject: string;
+  preview: string;
+  gate: string;
+}
+
+export interface WorkflowRuntime {
+  pipelineInstanceId: string;
+  pipelineStatus: string;
+  reminderInstanceId: string | null;
+  reminderStatus: string;
 }
 
 export interface StoryEvent {
@@ -56,6 +83,9 @@ export interface Show {
   createdAt: string;
   episodes: Episode[];
   continuityAnchor: string;
+  unlockQuiz: UnlockQuiz | null;
+  notificationPlan: NotificationPlan | null;
+  workflowRuntime: WorkflowRuntime | null;
   judgeNotes: {
     cloudflare: string[];
     elevenlabs: string[];

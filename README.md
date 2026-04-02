@@ -11,6 +11,8 @@ Audio-first educational storytelling for kids, built for a fast Cloudflare + Ele
 - Durable Object-backed show room state for serialized continuity
 - Judge-facing plan for ElevenLabs Text to Speech, Sound Effects, and Speech to Text
 - Prompt bundle, editor pass, continuity memory, and workflow demo artifacts via API
+- Quiz-gated episode unlock loop for families
+- Cloudflare Workflows for show pipeline orchestration and reminder planning
 
 ## Quick Start
 1. `make install`

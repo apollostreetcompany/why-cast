@@ -35,6 +35,7 @@ Ship an audio-first Cloudflare MVP for why-cast that turns vetted educational so
 - [x] Added repo-ready writer, editor, and continuity prompt templates that preserve the requested structure while improving control over quality.
 - [x] Added a full workflow demo artifact: prompt bundle, generated draft, editor pass, continuity memory, and step-by-step Cloudflare/ElevenLabs pipeline output.
 - [x] Bead 003 committed and deployed: prompt-driven workflow demo artifacts are now exposed by the live API.
+- [x] Added Cloudflare Workflow orchestration plus a family quiz gate that unlocks the next serialized episode and supports daily reminder planning.
 
 ### Now
 - Bead 004: wire one real generation path and one real ElevenLabs-backed audio path behind the workflow demo.

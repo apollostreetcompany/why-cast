@@ -1,3 +1,4 @@
+import { applyQuizAnswer } from "../services/feedback-loop";
 import { createShow, hydrateShow } from "../services/story-generator";
 import type { Show, ShowRequest, StoryEvent } from "../types";
 
@@ -33,13 +34,10 @@ export class ShowRoom {
     const url = new URL(request.url);
 
     if (request.method === "POST" && url.pathname.endsWith("/initialize")) {
-      const requestBody = (await request.json()) as ShowRequest;
-      const show = createShow(requestBody);
+      const body = (await request.json()) as { showId: string; request: ShowRequest };
+      const show = createShow(body.request, body.showId);
       const hydrated = hydrateShow(
-        {
-          ...show,
-          id: this.state.id.toString(),
-        },
+        show,
         [
         createEvent("show-created", "Show request accepted by the Durable Object."),
         createEvent(
@@ -66,6 +64,30 @@ export class ShowRoom {
       const updated = hydrateShow(show, [...show.events, createEvent(body.type, body.detail)]);
       await this.writeShow(updated);
       return Response.json(updated);
+    }
+
+    if (request.method === "POST" && url.pathname.endsWith("/quiz/submit")) {
+      const show = await this.readShow();
+
+      if (!show) {
+        return Response.json({ error: "Show not found" }, { status: 404 });
+      }
+
+      const body = (await request.json()) as { selectedOptionIndex: number };
+      const result = applyQuizAnswer(show, body.selectedOptionIndex);
+      const event = createEvent(
+        "episode-reviewed",
+        result.passed
+          ? `Family quiz passed. Episode ${result.unlockedEpisodeNumber} is unlocked for generation.`
+          : "Family quiz attempted but not yet passed.",
+      );
+      const updated = hydrateShow(result.show, [...result.show.events, event]);
+      await this.writeShow(updated);
+      return Response.json({
+        passed: result.passed,
+        unlockedEpisodeNumber: result.unlockedEpisodeNumber,
+        show: updated,
+      });
     }
 
     if (request.method === "GET" && url.pathname.endsWith("/show")) {

@@ -1,4 +1,5 @@
 import { buildContinuitySummary, buildEpisodeTitle, buildLearningGoal, buildQueuedEpisodePreview } from "./editor";
+import { buildNotificationPlan, buildUnlockQuiz, buildWorkflowRuntime } from "./feedback-loop";
 import { getSourcePack } from "../lib/source-packs";
 import type { Episode, Show, ShowRequest, SourcePack, StoryEvent } from "../types";
 
@@ -35,9 +36,7 @@ function buildScript(sourcePack: SourcePack, request: ShowRequest): string {
   ].join(" ");
 }
 
-function buildReadyEpisode(request: ShowRequest): Episode {
-  const sourcePack = getSourcePack(request.sourcePackId);
-
+function buildReadyEpisode(request: ShowRequest, sourcePack: SourcePack): Episode {
   return {
     id: createId("ep"),
     episodeNumber: 1,
@@ -53,18 +52,20 @@ function buildReadyEpisode(request: ShowRequest): Episode {
   };
 }
 
-export function createShow(request: ShowRequest): Show {
+export function createShow(request: ShowRequest, explicitId?: string): Show {
   const sourcePack = getSourcePack(request.sourcePackId);
-  const firstEpisode = buildReadyEpisode(request);
+  const firstEpisode = buildReadyEpisode(request, sourcePack);
   const queuedEpisodes =
     request.mode === "serialized"
-      ? [2, 3, 4].map((episodeNumber) =>
-          buildQueuedEpisodePreview(request, sourcePack, episodeNumber),
-        )
+      ? [
+          buildQueuedEpisodePreview(request, sourcePack, 2, "quiz-locked"),
+          buildQueuedEpisodePreview(request, sourcePack, 3, "queued"),
+          buildQueuedEpisodePreview(request, sourcePack, 4, "queued"),
+        ]
       : [];
 
-  return {
-    id: createId("show"),
+  const show: Show = {
+    id: explicitId ?? createId("show"),
     mode: request.mode,
     ages: request.ages,
     durationMinutes: request.durationMinutes,
@@ -77,11 +78,14 @@ export function createShow(request: ShowRequest): Show {
       request.mode === "serialized"
         ? `Keep ${request.characters} emotionally stable, recap the last concept in one beat, and thread ${sourcePack.topic} through the next reveal.`
         : `Keep the episode self-contained and end with one memorable recap of ${sourcePack.topic}.`,
+    unlockQuiz: buildUnlockQuiz(request, sourcePack),
+    notificationPlan: null,
+    workflowRuntime: null,
     judgeNotes: {
       cloudflare: [
         "Workers handle the API and static UI at the edge.",
         "Durable Objects keep serialized show continuity in one authoritative place.",
-        "Workflows are the planned async engine for generation, editing, and delivery.",
+        "Workflows orchestrate generation, reminders, and delivery steps around each show.",
       ],
       elevenlabs: [
         "Text to Speech for narration.",
@@ -90,6 +94,12 @@ export function createShow(request: ShowRequest): Show {
       ],
     },
     events: []
+  };
+
+  return {
+    ...show,
+    notificationPlan: buildNotificationPlan(show),
+    workflowRuntime: buildWorkflowRuntime(show),
   };
 }
 

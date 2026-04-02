@@ -1,14 +1,18 @@
 import { Hono } from "hono";
+import { WorkflowEntrypoint } from "cloudflare:workers";
 import { z } from "zod";
 import { sourcePacks } from "./lib/source-packs";
 import type { Show, ShowRequest } from "./types";
 import { buildAudioStackPlan } from "./lib/audio-stack";
 import { ShowRoom } from "./durable-objects/show-room";
 import { buildWorkflowDemo } from "./services/workflow-demo";
+import { DailyReminderWorkflow, ShowPipelineWorkflow } from "./workflows/show-pipeline";
 
 interface Env {
   ASSETS?: Fetcher;
   SHOW_ROOMS: DurableObjectNamespace;
+  SHOW_PIPELINE: Workflow<{ showId: string }>;
+  DAILY_REMINDER: Workflow<{ showId: string }>;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -36,7 +40,7 @@ app.get("/api/health", (c) =>
     product: "why-cast",
     timestamp: new Date().toISOString(),
     architecture: {
-      cloudflare: ["Workers", "Durable Objects", "Workflows (planned)", "D1 (next)", "R2 (next)", "KV (next)"],
+      cloudflare: ["Workers", "Durable Objects", "Workflows", "D1 (next)", "R2 (next)", "KV (next)"],
       elevenlabs: ["Text to Speech", "Sound Effects", "Speech to Text"],
     },
   }),
@@ -65,15 +69,33 @@ app.post("/api/shows", async (c) => {
   const body = await c.req.json();
   const request = requestSchema.parse(body) as ShowRequest;
   const roomId = c.env.SHOW_ROOMS.newUniqueId();
+  const showId = roomId.toString();
   const room = c.env.SHOW_ROOMS.get(roomId);
   const response = await room.fetch("https://show-room/initialize", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(request),
+    body: JSON.stringify({
+      showId,
+      request,
+    }),
   });
   const show = (await response.json()) as Show;
+
+  if (show.workflowRuntime) {
+    await c.env.SHOW_PIPELINE.create({
+      id: show.workflowRuntime.pipelineInstanceId,
+      params: { showId: show.id },
+    });
+
+    if (show.workflowRuntime.reminderInstanceId) {
+      await c.env.DAILY_REMINDER.create({
+        id: show.workflowRuntime.reminderInstanceId,
+        params: { showId: show.id },
+      });
+    }
+  }
 
   return c.json(enrichShow(show), 201);
 });
@@ -104,6 +126,36 @@ app.get("/api/shows/:showId/workflow-demo", async (c) => {
   return c.json(buildWorkflowDemo(show));
 });
 
+app.post("/api/shows/:showId/quiz/submit", async (c) => {
+  const roomId = c.env.SHOW_ROOMS.idFromString(c.req.param("showId"));
+  const room = c.env.SHOW_ROOMS.get(roomId);
+  const body = await c.req.json<{ selectedOptionIndex: number }>();
+  const response = await room.fetch("https://show-room/quiz/submit", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (response.status !== 200) {
+    const error = await response.json();
+    return c.json(error, response.status as 404 | 405);
+  }
+
+  const result = (await response.json()) as {
+    passed: boolean;
+    unlockedEpisodeNumber: number | null;
+    show: Show;
+  };
+
+  return c.json({
+    passed: result.passed,
+    unlockedEpisodeNumber: result.unlockedEpisodeNumber,
+    show: enrichShow(result.show),
+  });
+});
+
 app.notFound((c) => {
   if (c.env.ASSETS) {
     return c.env.ASSETS.fetch(c.req.raw);
@@ -114,3 +166,4 @@ app.notFound((c) => {
 
 export default app;
 export { ShowRoom };
+export { ShowPipelineWorkflow, DailyReminderWorkflow };

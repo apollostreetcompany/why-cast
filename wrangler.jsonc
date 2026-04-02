@@ -13,6 +13,18 @@
       }
     ]
   },
+  "workflows": [
+    {
+      "binding": "SHOW_PIPELINE",
+      "name": "why-cast-show-pipeline",
+      "class_name": "ShowPipelineWorkflow"
+    },
+    {
+      "binding": "DAILY_REMINDER",
+      "name": "why-cast-daily-reminder",
+      "class_name": "DailyReminderWorkflow"
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",

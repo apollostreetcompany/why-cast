@@ -28,7 +28,8 @@ describe("createShow", () => {
     });
 
     expect(show.episodes).toHaveLength(4);
-    expect(show.episodes[1]?.status).toBe("queued");
+    expect(show.episodes[1]?.status).toBe("quiz-locked");
     expect(show.episodes[3]?.continuitySummary).toContain("extend the story");
+    expect(show.unlockQuiz?.unlocksEpisodeNumber).toBe(2);
   });
 });
